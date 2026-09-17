@@ -1,0 +1,863 @@
+/* =========================================================
+   Avatar
+   ========================================================= */
+.avatar {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  border-radius: 34%;
+  transition:
+    transform var(--dur) var(--ease-spring),
+    filter var(--dur) var(--ease-out),
+    opacity var(--dur) var(--ease-out);
+}
+.avatar__svg,
+.avatar__img {
+  width: 100%;
+  height: 100%;
+  border-radius: 34%;
+  display: block;
+  object-fit: cover;
+}
+.avatar__img {
+  border: 1px solid var(--line);
+}
+.avatar__crown {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-6deg);
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.18));
+}
+.avatar--turn {
+  animation: avatar-turn 1.6s var(--ease-out) infinite;
+}
+@keyframes avatar-turn {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.04);
+  }
+}
+.avatar--ready {
+  transform: scale(1.02);
+}
+.avatar--submitted {
+  animation: check-pop var(--dur-slow) var(--ease-spring);
+}
+.avatar--voted {
+  filter: saturate(0.9);
+}
+.avatar--eliminated {
+  filter: grayscale(0.85) brightness(0.92);
+  opacity: 0.55;
+  transform: rotate(-7deg) scale(0.94);
+}
+.avatar--eliminated::after {
+  content: '';
+  position: absolute;
+  inset: -4%;
+  border-radius: 36%;
+  background: linear-gradient(
+    to top right,
+    transparent 46%,
+    var(--danger) 46%,
+    var(--danger) 54%,
+    transparent 54%
+  );
+  opacity: 0.85;
+}
+.avatar--disconnected {
+  filter: grayscale(0.6);
+  opacity: 0.6;
+}
+.avatar--disconnected::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 34%;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 6px,
+    rgba(0, 0, 0, 0.12) 6px 12px
+  );
+}
+
+/* =========================================================
+   Logo
+   ========================================================= */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+.logo__mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.logo__word {
+  display: inline-flex;
+}
+.logo--stack {
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* =========================================================
+   Game timer
+   ========================================================= */
+.timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.timer__dial {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.timer__value {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+.timer__label {
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--ink-faint);
+}
+.timer--urgent {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+.timer--urgent .timer__value {
+  color: var(--danger);
+}
+.timer--urgent .timer__dial {
+  animation: breathe 1s ease-in-out infinite;
+}
+.timer--big .timer__value {
+  font-size: 2.4rem;
+}
+
+/* =========================================================
+   Modal / sheet
+   ========================================================= */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--ink) 42%, transparent);
+  backdrop-filter: blur(6px);
+}
+.modal {
+  width: min(460px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-modal);
+  padding: 26px;
+}
+
+/* =========================================================
+   Toasts
+   ========================================================= */
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  width: min(420px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.toast {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-pop);
+  font-weight: 800;
+  text-align: center;
+}
+.toast--success {
+  background: var(--role-civilian);
+  color: #fff;
+  border-color: transparent;
+}
+.toast--danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* =========================================================
+   Contextual loading
+   ========================================================= */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 40px 20px;
+  text-align: center;
+}
+.loading__orbs {
+  display: flex;
+  gap: 12px;
+}
+.loading__orb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.loading__orb:nth-child(2) {
+  background: var(--accent-2);
+}
+.loading__orb:nth-child(3) {
+  background: var(--accent-3);
+}
+.loading__text {
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.loading--fullscreen {
+  min-height: 60vh;
+  justify-content: center;
+}
+
+/* =========================================================
+   Player bubble / seat
+   ========================================================= */
+.player-bubble {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px;
+  border-radius: var(--radius-xl);
+  border: 1px solid transparent;
+  transition:
+    background-color var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-spring);
+  min-width: 96px;
+}
+.player-bubble:hover {
+  background: var(--surface-2);
+}
+.player-bubble__name {
+  font-weight: 800;
+  font-size: 0.92rem;
+  text-align: center;
+  line-height: 1.1;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.player-bubble--self .player-bubble__name::after {
+  content: ' (you)';
+  color: var(--ink-faint);
+  font-weight: 700;
+  font-size: 0.78em;
+}
+.player-bubble--turn {
+  background: color-mix(in srgb, var(--accent-2) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent-2) 36%, transparent);
+}
+.player-bubble--ready {
+  background: color-mix(in srgb, var(--role-civilian) 10%, transparent);
+  border-color: color-mix(in srgb, var(--role-civilian) 30%, transparent);
+}
+.player-bubble--eliminated {
+  opacity: 0.7;
+}
+.player-bubble__tag {
+  position: absolute;
+  top: -8px;
+  right: -4px;
+}
+.player-bubble__status {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.player-bubble--ready .player-bubble__status {
+  color: var(--role-civilian);
+}
+.player-bubble--turn .player-bubble__status {
+  color: #9a6100;
+}
+
+/* status check */
+.status-check {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--role-civilian);
+  color: #fff;
+  font-size: 12px;
+  animation: check-pop var(--dur-slow) var(--ease-spring);
+}
+.status-dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  height: 22px;
+}
+.status-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+.status-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.status-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* =========================================================
+   Party invite / room code
+   ========================================================= */
+.party-invite {
+  position: relative;
+  border-radius: var(--radius-2xl);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 14%, var(--surface)),
+    var(--surface) 55%
+  );
+  border: 1px solid var(--line);
+  padding: 24px;
+  overflow: hidden;
+}
+.party-invite__code {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 900;
+  font-size: clamp(2.2rem, 9vw, 3.4rem);
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+.party-invite__code span {
+  animation: pop-in var(--dur-slow) var(--ease-spring) both;
+}
+.party-invite__perf {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 18px;
+  width: 2px;
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--ink) 30%, transparent) 1.5px,
+    transparent 2px
+  );
+  background-size: 2px 12px;
+  background-repeat: repeat-y;
+  opacity: 0.5;
+}
+.party-invite__stub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* =========================================================
+   Role reveal card
+   ========================================================= */
+.role-card {
+  position: relative;
+  width: min(360px, 82vw);
+  aspect-ratio: 3 / 4;
+  perspective: 1200px;
+  margin: 0 auto;
+}
+.role-card__inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.7s var(--ease-spring);
+}
+.role-card--revealed .role-card__inner {
+  transform: rotateY(180deg);
+}
+.role-card__face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 26px;
+  text-align: center;
+  overflow: hidden;
+}
+.role-card__back {
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+}
+.role-card__front {
+  transform: rotateY(180deg);
+  color: #fff;
+}
+.role-card__front--civilian {
+  background: linear-gradient(160deg, #29cf9a, #0fa86f);
+}
+.role-card__front--undercover {
+  background: linear-gradient(160deg, #ff9a4d, #ef6a1a);
+}
+.role-card__front--mrwhite {
+  background: linear-gradient(160deg, #8f74ff, #5b3fd6);
+}
+.role-card__hint {
+  position: absolute;
+  top: 16px;
+  left: 0;
+  right: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 800;
+  opacity: 0.85;
+}
+.role-card__glyph {
+  font-size: 77px;
+  line-height: 1;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.2));
+}
+.role-card__role {
+  font-weight: 900;
+  font-size: clamp(1.8rem, 7vw, 2.5rem);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.role-card__word {
+  font-weight: 800;
+  font-size: 1.05rem;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-pill);
+  padding: 8px 20px;
+}
+.role-card__secret {
+  font-weight: 900;
+  font-size: clamp(1.6rem, 8vw, 2.4rem);
+  letter-spacing: -0.01em;
+}
+.role-card__note {
+  font-size: 0.92rem;
+  font-weight: 600;
+  max-width: 30ch;
+  opacity: 0.95;
+  line-height: 1.4;
+}
+.role-card__cover-word {
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+}
+
+/* =========================================================
+   Secret word
+   ========================================================= */
+.secret-word {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 28px;
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+  border: 1px dashed color-mix(in srgb, var(--ink) 22%, transparent);
+}
+.secret-word__label {
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--ink-faint);
+}
+.secret-word__value {
+  font-weight: 900;
+  font-size: clamp(1.6rem, 7vw, 2.4rem);
+  letter-spacing: -0.01em;
+}
+
+/* =========================================================
+   Clue input
+   ========================================================= */
+.clue-input {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.clue-input__field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 22px;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  border: 2px solid var(--line);
+  transition: border-color var(--dur) var(--ease-out);
+}
+.clue-input__field:focus-within {
+  border-color: var(--primary);
+}
+.clue-input__field input {
+  flex: 1;
+  min-width: 0;
+  font-weight: 800;
+  font-size: 1.35rem;
+  padding: 12px 0;
+}
+.clue-input__field input::placeholder {
+  color: var(--ink-faint);
+  font-weight: 700;
+}
+.clue-input__count {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  padding-right: 6px;
+}
+.clue-input--locked .clue-input__field {
+  opacity: 0.6;
+}
+
+/* =========================================================
+   Clue reveal / stack
+   ========================================================= */
+.clue-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.clue-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.clue-line__who {
+  font-weight: 800;
+  font-size: 0.9rem;
+  min-width: 74px;
+  color: var(--ink-soft);
+}
+.clue-line__word {
+  font-weight: 900;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+}
+.clue-line--blank .clue-line__word {
+  color: var(--ink-faint);
+  font-weight: 700;
+}
+.clue-line--you {
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+}
+
+/* =========================================================
+   Suspicion / vote cards
+   ========================================================= */
+.suspicion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.suspicion-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 14px;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  border: 2px solid var(--line);
+  transition:
+    transform var(--dur) var(--ease-spring),
+    border-color var(--dur) var(--ease-out),
+    background-color var(--dur) var(--ease-out);
+}
+.suspicion-card:hover:not(:disabled) {
+  transform: translateY(-4px);
+  border-color: var(--line-strong);
+}
+.suspicion-card:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+.suspicion-card__name {
+  font-weight: 800;
+}
+.suspicion-card__clue {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.suspicion-card__clue::before {
+  content: '“';
+}
+.suspicion-card__clue::after {
+  content: '”';
+}
+.suspicion-card--selected {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  transform: translateY(-4px);
+}
+.suspicion-card--selected::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.suspicion-card--voted {
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
+.suspicion-card--me {
+  opacity: 0.6;
+}
+
+/* vote tally */
+.tally {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tally__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.tally__name {
+  font-weight: 800;
+  min-width: 80px;
+}
+.tally__bar {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.tally__dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  animation: pop-in var(--dur) var(--ease-spring) both;
+}
+.tally__count {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  min-width: 22px;
+  text-align: right;
+}
+
+/* =========================================================
+   Elimination reveal
+   ========================================================= */
+.elimination {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+.elimination__big {
+  font-weight: 900;
+  font-size: clamp(2.4rem, 10vw, 4.4rem);
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+
+/* =========================================================
+   Pass phone
+   ========================================================= */
+.pass-phone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  text-align: center;
+  padding: 20px;
+}
+.pass-phone__to {
+  font-weight: 900;
+  font-size: clamp(2rem, 9vw, 3.4rem);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.pass-phone__hint {
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+.pass-phone__eye {
+  font-size: 44px;
+  animation: wiggle 2.4s ease-in-out infinite;
+}
+
+/* =========================================================
+   Reactions / expression moments
+   ========================================================= */
+.reaction {
+  font-size: 40px;
+  line-height: 1;
+}
+.reaction--float {
+  animation: float-soft 3s ease-in-out infinite;
+}
+
+/* =========================================================
+   Winner reveal
+   ========================================================= */
+.winner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+.winner__title {
+  font-weight: 900;
+  font-size: clamp(2.6rem, 11vw, 5rem);
+  letter-spacing: -0.035em;
+  line-height: 0.9;
+}
+.winner__cast {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+.cast-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.cast-card--eliminated {
+  opacity: 0.62;
+}
+.cast-card__meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cast-card__name {
+  font-weight: 800;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cast-card__role {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cast-card__word {
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  font-weight: 700;
+}
+
+/* =========================================================
+   Round transition
+   ========================================================= */
+.round-transition {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.round-transition__num {
+  font-weight: 900;
+  font-size: clamp(3.4rem, 16vw, 7rem);
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+}
+
+/* =========================================================
+   Misc game bits
+   ========================================================= */
+.clue-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+.big-message {
+  font-weight: 900;
+  font-size: clamp(2rem, 8vw, 3.4rem);
+  letter-spacing: -0.03em;
+  line-height: 0.98;
+}
+.scribble {
+  font-style: italic;
+  font-weight: 700;
+  color: var(--ink-soft);
+}

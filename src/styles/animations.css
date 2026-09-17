@@ -1,0 +1,176 @@
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--rot, 0deg));
+  }
+  50% {
+    transform: translateY(-14px) rotate(var(--rot, 0deg));
+  }
+}
+
+@keyframes drift {
+  0% {
+    transform: translate(0, 0) rotate(var(--rot, 0deg));
+  }
+  33% {
+    transform: translate(10px, -12px) rotate(calc(var(--rot, 0deg) + 6deg));
+  }
+  66% {
+    transform: translate(-8px, 8px) rotate(calc(var(--rot, 0deg) - 6deg));
+  }
+  100% {
+    transform: translate(0, 0) rotate(var(--rot, 0deg));
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  70% {
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-5deg);
+  }
+  75% {
+    transform: rotate(5deg);
+  }
+}
+
+@keyframes shake-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes bar-fill {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes check-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.anim-float {
+  animation: float-soft 7s ease-in-out infinite;
+}
+.anim-drift {
+  animation: drift 16s ease-in-out infinite;
+}
+.anim-pop {
+  animation: pop-in var(--dur-slow) var(--ease-spring) both;
+}
+.anim-rise {
+  animation: rise-in var(--dur) var(--ease-out) both;
+}
+.anim-breathe {
+  animation: breathe 3.4s ease-in-out infinite;
+}
+.anim-wiggle {
+  animation: wiggle 0.5s var(--ease-out);
+}
+.anim-shake {
+  animation: shake-x 0.4s var(--ease-out);
+}

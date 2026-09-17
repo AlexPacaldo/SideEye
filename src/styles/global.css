@@ -1,0 +1,421 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure {
+  margin: 0;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+input,
+textarea {
+  border: none;
+  outline: none;
+  background: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background: var(--primary-soft);
+  color: var(--ink);
+}
+
+/* ---------- Scrollbar ---------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* =========================================================
+   App shell
+   ========================================================= */
+.app {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+}
+
+.app__bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      120% 90% at 80% -10%,
+      color-mix(in srgb, var(--accent-3) 14%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      100% 80% at 0% 0%,
+      color-mix(in srgb, var(--primary) 12%, transparent),
+      transparent 55%
+    ),
+    var(--bg);
+}
+
+.app__main {
+  flex: 1;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(16px, 3vw, 34px) clamp(16px, 4vw, 40px)
+    clamp(90px, 12vh, 130px);
+  display: flex;
+  flex-direction: column;
+}
+
+.app__main--narrow {
+  max-width: 640px;
+}
+
+/* =========================================================
+   Type helpers
+   ========================================================= */
+.t-hero {
+  font-weight: 900;
+  font-size: clamp(2.5rem, 9vw, 5.5rem);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+}
+.t-title {
+  font-weight: 900;
+  font-size: clamp(1.7rem, 5vw, 2.6rem);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+}
+.t-section {
+  font-weight: 800;
+  font-size: clamp(1.05rem, 2.4vw, 1.25rem);
+  letter-spacing: -0.01em;
+}
+.t-eyebrow {
+  font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.t-body {
+  font-weight: 600;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.t-muted {
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+/* =========================================================
+   Buttons
+   ========================================================= */
+.btn {
+  --btn-bg: var(--surface);
+  --btn-fg: var(--ink);
+  --btn-border: var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 24px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
+  user-select: none;
+}
+.btn:active:not(:disabled) {
+  transform: translateY(2px) scale(0.985);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn--block {
+  width: 100%;
+}
+.btn--sm {
+  min-height: 42px;
+  padding: 0 18px;
+  font-size: 0.9rem;
+}
+.btn--lg {
+  min-height: 62px;
+  padding: 0 32px;
+  font-size: 1.1rem;
+}
+.btn--primary {
+  --btn-bg: var(--primary);
+  --btn-fg: var(--on-accent);
+  --btn-border: transparent;
+  box-shadow: var(--shadow-float);
+}
+.btn--primary:hover:not(:disabled) {
+  --btn-bg: var(--primary-press);
+}
+.btn--soft {
+  --btn-bg: var(--surface-2);
+  --btn-fg: var(--ink);
+  --btn-border: transparent;
+}
+.btn--ghost {
+  --btn-bg: transparent;
+  --btn-fg: var(--ink-soft);
+  --btn-border: transparent;
+}
+.btn--ghost:hover:not(:disabled) {
+  --btn-fg: var(--ink);
+  --btn-bg: var(--surface-2);
+}
+.btn--outline {
+  --btn-bg: transparent;
+  --btn-fg: var(--ink);
+  --btn-border: var(--line-strong);
+}
+.btn--amber {
+  --btn-bg: var(--accent-2);
+  --btn-fg: #3a2400;
+  --btn-border: transparent;
+}
+.btn--danger {
+  --btn-bg: var(--danger);
+  --btn-fg: var(--on-accent);
+  --btn-border: transparent;
+}
+
+.btn--icon {
+  min-height: 46px;
+  width: 46px;
+  padding: 0;
+  border-radius: var(--radius-pill);
+}
+
+/* =========================================================
+   Surfaces (borders, not shadows)
+   ========================================================= */
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+}
+.surface--soft {
+  background: var(--surface-2);
+  border-color: transparent;
+}
+.surface--elevated {
+  box-shadow: var(--shadow-pop);
+}
+
+/* =========================================================
+   Pills / badges
+   ========================================================= */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.badge--primary {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: transparent;
+}
+.badge--success {
+  background: var(--role-civilian-soft);
+  color: var(--role-civilian);
+  border-color: transparent;
+}
+.badge--warning {
+  background: var(--accent-2-soft);
+  color: #9a6100;
+  border-color: transparent;
+}
+.badge--danger {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: transparent;
+}
+.badge--live::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+/* =========================================================
+   Decorative motifs
+   ========================================================= */
+.motif {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  color: var(--ink);
+  opacity: 0.05;
+}
+.motif--primary {
+  color: var(--primary);
+  opacity: 0.1;
+}
+.motif--grape {
+  color: var(--grape);
+  opacity: 0.1;
+}
+
+.dots {
+  background-image: radial-gradient(
+    currentColor 1.4px,
+    transparent 1.4px
+  );
+  background-size: 18px 18px;
+  opacity: 0.12;
+}
+
+/* =========================================================
+   Utility
+   ========================================================= */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.row--between {
+  justify-content: space-between;
+}
+.col {
+  display: flex;
+  flex-direction: column;
+}
+.wrap {
+  flex-wrap: wrap;
+}
+.grow {
+  flex: 1;
+}
+.center {
+  align-items: center;
+  justify-content: center;
+}
+.text-center {
+  text-align: center;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.spacer {
+  flex: 1;
+}
+.divider {
+  height: 1px;
+  background: var(--line);
+  border: none;
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
