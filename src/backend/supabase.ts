@@ -21,6 +21,8 @@ export class SupabaseBackend implements Backend {
   private client: SupabaseClient
   private listeners = new Set<(s: Snapshot) => void>()
   private channel: RealtimeChannel | null = null
+  private poll: ReturnType<typeof setInterval> | null = null
+  private refreshing = false
   private roomCode: string | null = null
   private snapshot: Snapshot = {
     user: null,
@@ -151,6 +153,8 @@ export class SupabaseBackend implements Backend {
       p_mode: input.mode,
       p_name: input.name,
       p_settings: settings,
+      p_fill_bots: input.fillBots ?? false,
+      p_pass_names: input.passNames ?? null,
     })
     if (error) throw new BackendError(error.message)
     this.roomCode = data as string
@@ -264,9 +268,19 @@ export class SupabaseBackend implements Backend {
         this.emit()
       })
     this.channel = channel
+    this.startPolling()
+  }
+
+  private startPolling(): void {
+    if (this.poll) return
+    this.poll = setInterval(() => void this.refresh(), 1000)
   }
 
   private leaveChannel(): void {
+    if (this.poll) {
+      clearInterval(this.poll)
+      this.poll = null
+    }
     if (this.channel) {
       void this.client.removeChannel(this.channel)
       this.channel = null
@@ -274,23 +288,28 @@ export class SupabaseBackend implements Backend {
   }
 
   private async refresh(): Promise<void> {
-    if (!this.roomCode) return
-    const { data, error } = await this.client.rpc('get_room_state', {
-      p_code: this.roomCode,
-    })
-    if (error || !data) return
-    const state = data as RoomStateRow
-    this.snapshot.room = normalizeRoom(state, this.roomCode)
-    const { data: secret } = await this.client.rpc('get_my_secret', {
-      p_code: this.roomCode,
-    })
-    const { data: auth } = await this.client.auth.getUser()
-    this.snapshot.me = {
-      playerId: auth.user?.id ?? '',
-      secret: (secret as SecretInfo | null) ?? null,
+    if (!this.roomCode || this.refreshing) return
+    this.refreshing = true
+    try {
+      const { data, error } = await this.client.rpc('get_room_state', {
+        p_code: this.roomCode,
+      })
+      if (error || !data) return
+      const state = data as RoomStateRow
+      this.snapshot.room = normalizeRoom(state, this.roomCode)
+      const { data: secret } = await this.client.rpc('get_my_secret', {
+        p_code: this.roomCode,
+      })
+      const info = (secret as (SecretInfo & { playerId?: string }) | null) ?? null
+      this.snapshot.me = {
+        playerId: info?.playerId ?? this.snapshot.user?.id ?? '',
+        secret: info ? { role: info.role, word: info.word } : null,
+      }
+      this.snapshot.connected = true
+      this.emit()
+    } finally {
+      this.refreshing = false
     }
-    this.snapshot.connected = true
-    this.emit()
   }
 }
 
