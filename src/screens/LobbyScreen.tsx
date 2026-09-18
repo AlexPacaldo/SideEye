@@ -43,7 +43,7 @@ export function LobbyScreen() {
         )}
       </header>
 
-      <PartyInvite code={room.code} />
+      {room.mode !== 'passplay' && <PartyInvite code={room.code} />}
 
       <div className="lobby__cluster-wrap">
         <div className="lobby__cluster">

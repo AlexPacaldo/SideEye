@@ -102,7 +102,9 @@ export function AppShell() {
 
       {room && (
         <div className="room-bar">
-          <span className="room-bar__code">{room.code}</span>
+          {room.mode !== 'passplay' && (
+            <span className="room-bar__code">{room.code}</span>
+          )}
           <span className="room-bar__dot" aria-hidden="true" />
           <span className="room-bar__phase">
             {room.mode === 'passplay' ? 'PASS & PLAY' : `ROUND ${Math.max(1, room.round)}`}
