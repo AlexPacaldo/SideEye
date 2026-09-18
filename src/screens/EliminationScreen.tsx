@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { EliminationReveal } from '../components/game/EliminationReveal'
 import { GameTimer } from '../components/ui/GameTimer'
 import { useApp } from '../state/context'
@@ -5,6 +6,17 @@ import { useApp } from '../state/context'
 export function EliminationScreen() {
   const { snapshot, backend, safe } = useApp()
   const room = snapshot.room
+  const deadline = room?.deadline ?? null
+
+  useEffect(() => {
+    if (!deadline) return
+    const delay = Math.max(0, deadline - Date.now() + 120)
+    const handle = window.setTimeout(() => {
+      void safe(backend.advance())
+    }, delay)
+    return () => window.clearTimeout(handle)
+  }, [backend, deadline, safe])
+
   if (!room) return null
   const last = room.lastEliminated
 

@@ -305,7 +305,7 @@ begin
     end if;
 
   elsif p_phase = 'elimination' then
-    update public.rooms set deadline = now() + interval '4.2 seconds', timer_seconds = 4 where code = p_code;
+    update public.rooms set deadline = now() + interval '1.6 seconds', timer_seconds = 2 where code = p_code;
 
   elsif p_phase = 'voteReveal' then
     update public.rooms
