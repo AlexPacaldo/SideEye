@@ -496,8 +496,10 @@ passIndex: 0,
     this.commit()
   }
 
-  async submitClue(text: string): Promise<void> {
-    this.submitClueFor(this.currentActor(), text)
+async submitClue(text: string): Promise<void> {
+    const actor = this.currentActor()
+    if (this.room?.phase === 'clue' && this.room?.mode === 'online' && actor !== this.user?.id) return
+    this.submitClueFor(actor, text)
   }
 
   private submitClueFor(playerId: string | null, text: string): void {
@@ -690,10 +692,14 @@ if (room.passIndex >= this.internal.passOrder.length) {
     room.passIndex = 0
     room.passRevealed = false
 
-    if (phase === 'clue') {
+if (phase === 'clue') {
       room.submittedIds = []
       room.clues = room.clues.filter((c) => c.round !== room.round)
-      this.setPassOrder(this.aliveIds())
+      this.setPassOrder(
+        this.room.mode === 'passplay'
+          ? this.aliveIds()
+          : this.shuffleOrder(this.aliveIds()),
+      )
     }
     if (phase === 'voting' || phase === 'runoff') {
       room.submittedIds = []
@@ -887,7 +893,7 @@ room.round += 1
 
   private currentActor(): string | null {
     if (!this.room || !this.internal) return null
-    if (this.room.mode === 'passplay') {
+if (this.room.mode === 'passplay') {
       if (this.room.phase === 'mrWhiteGuess') return this.room.mrWhiteGuessingId
       return this.internal.passOrder[this.room.passIndex] ?? null
     }
@@ -895,6 +901,9 @@ room.round += 1
       return this.room.mrWhiteGuessingId === this.user?.id
         ? this.user?.id ?? null
         : null
+    }
+    if (this.room.phase === 'clue') {
+      return this.internal.passOrder[this.room.passIndex] ?? null
     }
     return this.user?.id ?? null
   }
@@ -907,22 +916,32 @@ private setPassOrder(order: string[]): void {
     this.room.passOrder = [...order]
   }
 
-  private advancePass(): void {
+  private shuffleOrder(order: string[]): string[] {
+    const copy = [...order]
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[copy[i], copy[j]] = [copy[j], copy[i]]
+    }
+    return copy
+  }
+
+private advancePass(): void {
     if (!this.room || !this.internal) return
-    if (this.room.mode !== 'passplay') return
+    if (this.room.mode !== 'passplay' && this.room.phase !== 'clue') return
     this.room.passRevealed = false
+    const order = this.internal.passOrder
+    if (this.room.phase === 'clue') {
+      const hasClue = (id: string) =>
+        this.room!.clues.some((c) => c.playerId === id && c.round === this.room!.round)
+      let idx = 0
+      while (idx < order.length && hasClue(order[idx])) idx += 1
+      if (idx > order.length - 1) idx = order.length - 1
+      this.room.passIndex = idx
+      return
+    }
     let idx = this.room.passIndex + 1
-    while (idx < this.internal.passOrder.length) {
-      const id = this.internal.passOrder[idx]
-      if (
-        this.room.phase === 'clue' &&
-        this.room.clues.some(
-          (c) => c.playerId === id && c.round === this.room!.round,
-        )
-      ) {
-        idx += 1
-        continue
-      }
+    while (idx < order.length) {
+      const id = order[idx]
       if (
         (this.room.phase === 'voting' || this.room.phase === 'runoff') &&
         this.internal.roundVotes.some(

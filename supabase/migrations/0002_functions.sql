@@ -280,7 +280,13 @@ begin
     update public.rooms set submitted_ids = '{}' where code = p_code;
     delete from public.clues where room_code = p_code and round = r.round;
     update public.rooms
-      set pass_order = private.alive_ids(p_code)
+      set pass_order = case
+        when r.mode = 'passplay' then private.alive_ids(p_code)
+        else (
+          select array_agg(pid order by md5(p_code || pid || r.round::text))
+          from unnest(private.alive_ids(p_code)) as a(pid)
+        )
+      end
     where code = p_code;
 
   elsif p_phase in ('voting', 'runoff') then
@@ -329,27 +335,37 @@ declare
   v_len int;
 begin
   select * into r from public.rooms where code = p_code for update;
-  if r.code is null or r.mode <> 'passplay' then return; end if;
+  if r.code is null then return; end if;
+  if r.mode <> 'passplay' and r.phase <> 'clue' then return; end if;
   v_len := coalesce(array_length(r.pass_order, 1), 0);
-  idx := r.pass_index + 1;
-  while idx < v_len loop
-    if r.phase = 'clue' and exists (
-      select 1 from public.clues
-      where room_code = p_code and player_id = r.pass_order[idx + 1] and round = r.round
-    ) then
-      idx := idx + 1;
-      continue;
-    end if;
-    if r.phase in ('voting', 'runoff') and exists (
-      select 1 from public.votes
-      where room_code = p_code and voter_id = r.pass_order[idx + 1] and round = r.round
-    ) then
-      idx := idx + 1;
-      continue;
-    end if;
-    exit;
-  end loop;
-  update public.rooms set pass_index = idx, pass_revealed = false where code = p_code;
+  if r.phase = 'clue' then
+    idx := 1;
+    while idx <= v_len loop
+      if exists (
+        select 1 from public.clues
+        where room_code = p_code and player_id = r.pass_order[idx] and round = r.round
+      ) then
+        idx := idx + 1;
+        continue;
+      end if;
+      exit;
+    end loop;
+    if idx > v_len then idx := v_len; end if;
+    update public.rooms set pass_index = idx - 1, pass_revealed = false where code = p_code;
+  else
+    idx := r.pass_index + 1;
+    while idx < v_len loop
+      if r.phase in ('voting', 'runoff') and exists (
+        select 1 from public.votes
+        where room_code = p_code and voter_id = r.pass_order[idx + 1] and round = r.round
+      ) then
+        idx := idx + 1;
+        continue;
+      end if;
+      exit;
+    end loop;
+    update public.rooms set pass_index = idx, pass_revealed = false where code = p_code;
+  end if;
 end $$;
 
 -- =========================================================
@@ -1375,7 +1391,11 @@ begin
       else null
     end;
   else
-    v_actor := v_uid::text;
+    v_actor := case
+      when array_length(r.pass_order, 1) >= r.pass_index + 1 then r.pass_order[r.pass_index + 1]
+      else null
+    end;
+    if v_actor is null or v_actor <> v_uid::text then return; end if;
   end if;
   perform private.submit_clue(r.code, v_actor, p_text);
 end $$;

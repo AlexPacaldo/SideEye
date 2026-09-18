@@ -1,6 +1,7 @@
 import { AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { ClueInput } from '../components/game/ClueInput'
+import { ClueStack, type ClueEntry } from '../components/game/ClueStack'
 import { PassPhoneScreen } from '../components/game/PassPhoneScreen'
 import { RoundTransition } from '../components/game/RoundTransition'
 import { SecretWord } from '../components/game/SecretWord'
@@ -42,6 +43,21 @@ function OnlineClue() {
 
   if (!self) return <Loading label="Joining the round…" />
 
+  const currentId = room.passOrder[room.passIndex] ?? ''
+  const isMyTurn = currentId === me.playerId
+  const current = room.players.find((p) => p.id === currentId)
+  const clues = room.clues
+    .filter((c) => c.round === room.round)
+    .map((c) => {
+      const p = room.players.find((x) => x.id === c.playerId)
+      return {
+        playerId: c.playerId,
+        name: p?.name ?? '??',
+        text: c.text,
+        isYou: c.playerId === me.playerId,
+      } satisfies ClueEntry
+    })
+
   return (
     <div className="clue-screen">
       <header className="phase-head">
@@ -52,23 +68,40 @@ function OnlineClue() {
         <GameTimer deadline={room.deadline} total={room.timerSeconds} />
       </header>
 
-      <div className="clue-screen__word">
-        <SecretWord word={me.secret?.word ?? null} />
-        <p className="t-body clue-screen__prompt">
-          Give us something… but don&apos;t give it away.
-        </p>
-      </div>
+      {isMyTurn && !submitted ? (
+        <>
+          <div className="clue-screen__word">
+            <SecretWord word={me.secret?.word ?? null} />
+            <p className="t-body clue-screen__prompt">
+              You&apos;re up. Give us something… but don&apos;t give it away.
+            </p>
+          </div>
+          <ClueInput
+            onSubmit={(text) => void safe(backend.submitClue(text))}
+          />
+        </>
+      ) : (
+        <div className="clue-screen__waiting">
+          <span className="clue-screen__wait-label">
+            {submitted ? 'CLUE SENT' : 'WAITING'}
+          </span>
+          <p className="t-title" style={{ fontSize: '1.15rem' }}>
+            {current?.name ?? 'Someone'}
+            {submitted ? ' is up next' : ' is giving their clue…'}
+          </p>
+          {submitted && (
+            <p className="t-muted text-center" style={{ fontSize: '0.9rem' }}>
+              The phone is passing — every clue is revealed as it lands.
+            </p>
+          )}
+        </div>
+      )}
 
-      <ClueInput
-        locked={submitted}
-        lockedLabel="CLUE LOCKED 🔒"
-        onSubmit={(text) => void safe(backend.submitClue(text))}
-      />
-
-      {submitted && (
-        <p className="t-muted text-center" style={{ fontSize: '0.9rem' }}>
-          Let&apos;s see what everyone else says.
-        </p>
+      {clues.length > 0 && (
+        <div className="col" style={{ gap: 8, alignSelf: 'stretch' }}>
+          <span className="t-eyebrow">Clues so far</span>
+          <ClueStack entries={clues} />
+        </div>
       )}
 
       <PlayerStatus
