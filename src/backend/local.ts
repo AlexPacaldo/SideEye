@@ -730,9 +730,9 @@ if (phase === 'clue') {
         room.timerSeconds = 60
       }
     }
-    if (phase === 'elimination') {
-      room.deadline = null
-      room.timerSeconds = null
+if (phase === 'elimination') {
+      room.deadline = room.mode === 'online' ? Date.now() + 4000 : null
+      room.timerSeconds = room.mode === 'online' ? 4 : null
     }
     if (phase === 'voteReveal') {
       room.tally = tallyVotes(this.internal!.roundVotes, room.round, this.aliveIds())

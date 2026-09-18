@@ -1,22 +1,42 @@
+import { useEffect, useState } from 'react'
 import { EliminationReveal } from '../components/game/EliminationReveal'
+import { GameTimer } from '../components/ui/GameTimer'
 import { useApp } from '../state/context'
 
 export function EliminationScreen() {
   const { snapshot, backend, safe } = useApp()
   const room = snapshot.room
+  const deadline = room?.deadline ?? null
+
+  const [ready, setReady] = useState(!deadline)
+  useEffect(() => {
+    if (!deadline) {
+      setReady(true)
+      return
+    }
+    setReady(Date.now() >= deadline)
+    const handle = window.setTimeout(() => setReady(true), Math.max(0, deadline - Date.now()))
+    return () => window.clearTimeout(handle)
+  }, [deadline])
 
   if (!room) return null
   const last = room.lastEliminated
 
+  const continueButton = (
+    <button
+      type="button"
+      className="btn btn--ghost"
+      disabled={!ready}
+      onClick={() => void safe(backend.advance())}
+    >
+      {ready ? 'CONTINUE' : 'Revealing…'} <span aria-hidden="true">{ready ? '→' : ''}</span>
+    </button>
+  )
+
   const footer = (
     <div className="row center" style={{ gap: 14, marginTop: 22 }}>
-      <button
-        type="button"
-        className="btn btn--ghost"
-        onClick={() => void safe(backend.advance())}
-      >
-        CONTINUE <span aria-hidden="true">→</span>
-      </button>
+      <GameTimer deadline={deadline} total={room.timerSeconds} size={44} label="revealing" />
+      {continueButton}
     </div>
   )
 
