@@ -124,6 +124,49 @@
 .room-bar__leave:hover {
   color: var(--danger);
 }
+.room-bar__voice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-faint);
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+.room-bar__voice:hover {
+  color: var(--ink);
+}
+.room-bar__voice.is-live {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+.room-bar__voice.is-muted {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+}
+.voice-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: min(320px, 76vw);
+}
+.voice-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.voice-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
 
 /* =========================================================
    Home

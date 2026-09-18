@@ -30,6 +30,7 @@ import { Decor } from './ui/Decor'
 import { Logo } from './ui/Logo'
 import { Loading } from './ui/Loading'
 import { Toasts } from './ui/Toasts'
+import { VoiceChat } from './voice/VoiceChat'
 import type { Phase } from '../game/types'
 
 type View = 'home' | 'friends' | 'history' | 'auth'
@@ -110,6 +111,7 @@ export function AppShell() {
             {room.mode === 'passplay' ? 'PASS & PLAY' : `ROUND ${Math.max(1, room.round)}`}
           </span>
           <span className="grow" />
+          <VoiceChat />
           <button
             type="button"
             className="room-bar__leave"
