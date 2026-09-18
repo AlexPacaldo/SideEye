@@ -579,8 +579,12 @@ if (!this.room.submittedIds.includes(playerId)) {
       case 'voteReveal':
         this.resolveVotes()
         break
-case 'elimination':
-        this.continueAfterElimination()
+      case 'elimination':
+        if (!this.room.deadline || Date.now() >= this.room.deadline) {
+          this.continueAfterElimination()
+        } else {
+          this.commit()
+        }
         break
       case 'postElimination':
         this.enterPhase('discussion', null)

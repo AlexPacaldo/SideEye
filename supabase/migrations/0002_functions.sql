@@ -1445,7 +1445,11 @@ begin
   elsif r.phase = 'voteReveal' then
     perform private.resolve_votes(r.code);
   elsif r.phase = 'elimination' then
-    perform private.continue_after_elimination(r.code);
+    if r.deadline is null or now() >= r.deadline then
+      perform private.continue_after_elimination(r.code);
+    else
+      update public.rooms set updated_at = now() where code = r.code;
+    end if;
   elsif r.phase = 'roleReveal' and r.mode = 'passplay' then
     perform public.pass_turn();
   else
