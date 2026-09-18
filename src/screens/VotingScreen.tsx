@@ -16,6 +16,13 @@ function candidatesFor(room: RoomSnapshot, voterId: string): PublicPlayer[] {
   return pool.filter((p) => p.id !== voterId)
 }
 
+function passplayCandidates(room: RoomSnapshot): PublicPlayer[] {
+  const alive = room.players.filter((p) => !room.eliminatedIds.includes(p.id))
+  return room.phase === 'runoff' && room.runoffIds
+    ? alive.filter((p) => room.runoffIds!.includes(p.id))
+    : alive
+}
+
 function clueMap(room: RoomSnapshot): Map<string, string> {
   const map = new Map<string, string>()
   room.clues
@@ -99,9 +106,8 @@ function VotingOnline() {
 function VotingPassPlay() {
   const { snapshot, backend, safe } = useApp()
   const room = snapshot.room!
-  const me = snapshot.me!
   const [selected, setSelected] = useState<string | null>(null)
-  const candidates = useMemo(() => candidatesFor(room, me.playerId), [room, me.playerId])
+  const candidates = useMemo(() => passplayCandidates(room), [room])
   const clues = useMemo(() => clueMap(room), [room])
 
   return (
@@ -130,7 +136,7 @@ function VotingPassPlay() {
         clues={clues}
         selected={selected}
         onSelect={setSelected}
-        meId={me.playerId}
+        meId=""
       />
       <button
         type="button"

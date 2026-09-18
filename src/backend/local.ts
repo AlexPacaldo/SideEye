@@ -533,10 +533,10 @@ passIndex: 0,
     if (this.internal!.roundVotes.some((v) => v.voterId === playerId && v.round === this.room!.round)) {
       return
     }
-    if (this.room.runoffIds && targetId && !this.room.runoffIds.includes(targetId)) {
+if (this.room.runoffIds && targetId && !this.room.runoffIds.includes(targetId)) {
       return
     }
-    if (targetId === playerId) return
+    if (this.room.mode !== 'passplay' && targetId === playerId) return
     this.internal!.roundVotes = [
       ...this.internal!.roundVotes,
       { voterId: playerId, targetId, round: this.room.round },

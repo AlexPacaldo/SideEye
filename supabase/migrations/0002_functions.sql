@@ -417,7 +417,7 @@ begin
   if r.runoff_ids is not null and p_target is not null and not (p_target = any (r.runoff_ids)) then
     return;
   end if;
-  if p_target = p_voter then return; end if;
+  if p_target = p_voter and r.mode <> 'passplay' then return; end if;
 
   insert into public.votes (room_code, voter_id, target_id, round)
   values (p_code, p_voter, p_target, r.round);

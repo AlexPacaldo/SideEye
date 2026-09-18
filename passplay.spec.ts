@@ -115,14 +115,14 @@ describe('pass & play', () => {
     s = backend.getSnapshot()
     expect(s.room!.phase).toBe('voting')
 
-    // no per-player voting: the group picks one name, one tap locks it in
+    // no per-player voting: the group picks one name, one tap locks it in.
+    // everyone is listed, including the holder of the phone
     const voter = s.me!.playerId
-    const target = order.find((id) => id !== voter)!
-    await backend.castVote(target)
+    await backend.castVote(voter)
     s = backend.getSnapshot()
 
     expect(s.room!.phase).toBe('voteReveal')
-    const mine = s.room!.tally?.find((t) => t.playerId === target)
+    const mine = s.room!.tally?.find((t) => t.playerId === voter)
     expect(mine?.count).toBe(1)
   })
 
