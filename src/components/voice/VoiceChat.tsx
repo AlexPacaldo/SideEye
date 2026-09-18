@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { useApp } from '../../state/context'
 import {
   getVoice,
+  getVoiceRemotes,
   joinVoice,
   leaveVoice,
   subscribeVoice,
@@ -11,11 +12,37 @@ import {
 } from '../../voice'
 import { Modal } from '../ui/Modal'
 
+function RemoteAudio({ stream }: { stream: MediaStream }) {
+  const ref = useRef<HTMLAudioElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.srcObject = stream
+    const tryPlay = () => {
+      el.play().catch(() => {})
+    }
+    tryPlay()
+    const retry = () => {
+      tryPlay()
+      window.removeEventListener('pointerdown', retry)
+    }
+    window.addEventListener('pointerdown', retry)
+    return () => {
+      window.removeEventListener('pointerdown', retry)
+      el.srcObject = null
+    }
+  }, [stream])
+
+  return <audio ref={ref} autoPlay playsInline style={{ display: 'none' }} />
+}
+
 export function VoiceChat() {
   const { snapshot } = useApp()
   const room = snapshot.room
   const me = snapshot.me
   const voice = useSyncExternalStore(subscribeVoice, getVoice)
+  const remotes = useSyncExternalStore(subscribeVoice, getVoiceRemotes)
   const [open, setOpen] = useState(false)
   const lastCode = useRef<string | null>(null)
 
@@ -48,6 +75,9 @@ export function VoiceChat() {
 
   return (
     <>
+      {remotes.map((entry) => (
+        <RemoteAudio key={entry.id} stream={entry.stream} />
+      ))}
       <button
         type="button"
         className={classNames}

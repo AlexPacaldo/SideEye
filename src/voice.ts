@@ -48,14 +48,12 @@ let hosting = false
 let ownId: string | null = null
 let localStream: MediaStream | null = null
 let dataConn: DataConnection | null = null
-let audioCtx: AudioContext | null = null
 let waitingForRoster = false
 
 const guestConns = new Map<string, DataConnection>()
 const outgoing = new Map<string, MediaConnection>()
 const incoming = new Map<string, MediaConnection>()
 const remotes = new Map<string, MediaStream>()
-const audioNodes = new Set<MediaStreamAudioSourceNode>()
 const listeners = new Set<() => void>()
 
 let state: VoiceState = {
@@ -93,53 +91,26 @@ function setState(patch: Partial<VoiceState>): void {
 
 /* ---------------- remote audio ---------------- */
 
-function resumeAudio(): void {
-  if (!audioCtx || audioCtx.state === 'closed') return
-  const tryResume = (): boolean => {
-    if (!audioCtx || audioCtx.state !== 'suspended') return true
-    void audioCtx.resume().catch(() => {})
-    return false
-  }
-  if (tryResume()) return
-  const unlock = () => {
-    if (!tryResume()) return
-    window.removeEventListener('pointerdown', unlock)
-    window.removeEventListener('keydown', unlock)
-  }
-  window.addEventListener('pointerdown', unlock)
-  window.addEventListener('keydown', unlock)
+export interface RemoteEntry {
+  id: string
+  stream: MediaStream
 }
 
-function attachAudio(stream: MediaStream): void {
-  if (!audioCtx || audioCtx.state === 'closed') return
-  resumeAudio()
-  try {
-    const src = audioCtx.createMediaStreamSource(stream)
-    src.connect(audioCtx.destination)
-    audioNodes.add(src)
-    const detach = () => {
-      if (audioNodes.delete(src)) {
-        try {
-          src.disconnect()
-        } catch {
-          /* noop */
-        }
-      }
-    }
-    stream.addEventListener('removetrack', detach, { once: true })
-  } catch {
-    /* noop */
-  }
+let remoteList: RemoteEntry[] = []
+
+export function getVoiceRemotes(): RemoteEntry[] {
+  return remoteList
 }
 
 function addRemote(id: string, stream: MediaStream): void {
   remotes.set(id, stream)
-  attachAudio(stream)
+  remoteList = [...remoteList, { id, stream }]
   setState({ connected: remotes.size })
 }
 
 function removeRemote(id: string): void {
   if (!remotes.delete(id)) return
+  remoteList = remoteList.filter((r) => r.id !== id)
   setState({ connected: remotes.size })
 }
 
@@ -299,14 +270,7 @@ function cleanup(): void {
   })
   incoming.clear()
   remotes.clear()
-  audioNodes.forEach((n) => {
-    try {
-      n.disconnect()
-    } catch {
-      /* noop */
-    }
-  })
-  audioNodes.clear()
+  remoteList = []
   if (localStream) {
     localStream.getTracks().forEach((t) => t.stop())
     localStream = null
@@ -391,13 +355,6 @@ export async function joinVoice(code: string, isHost: boolean): Promise<void> {
       issue: null,
     })
     return
-  }
-
-  try {
-    if (!audioCtx) audioCtx = new AudioContext()
-    resumeAudio()
-  } catch {
-    /* audio output is optional */
   }
 
   const id = isHost
