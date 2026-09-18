@@ -4,6 +4,7 @@ import {
   LogOut,
   Moon,
   Sun,
+  Trophy,
   UserRound,
   Users,
 } from 'lucide-react'
@@ -19,6 +20,7 @@ import { ContinueScreen } from '../screens/ContinueScreen'
 import { FriendsScreen } from '../screens/FriendsScreen'
 import { HistoryScreen } from '../screens/HistoryScreen'
 import { HomeScreen } from '../screens/HomeScreen'
+import { LeaderboardScreen } from '../screens/LeaderboardScreen'
 import { LobbyScreen } from '../screens/LobbyScreen'
 import { MrWhiteScreen } from '../screens/MrWhiteScreen'
 import { RoleRevealScreen } from '../screens/RoleRevealScreen'
@@ -34,7 +36,7 @@ import { PartyChat } from './chat/PartyChat'
 import { VoiceChat } from './voice/VoiceChat'
 import type { Phase } from '../game/types'
 
-type View = 'home' | 'friends' | 'history' | 'auth'
+type View = 'home' | 'friends' | 'history' | 'leaderboard' | 'auth'
 
 type DecorVariant = 'home' | 'lobby' | 'game' | 'soft'
 
@@ -95,6 +97,8 @@ export function AppShell() {
               <FriendsScreen onBack={() => setView('home')} onPlay={() => setView('home')} />
             ) : view === 'history' ? (
               <HistoryScreen onBack={() => setView('home')} onPlay={() => setView('home')} />
+            ) : view === 'leaderboard' ? (
+              <LeaderboardScreen onBack={() => setView('home')} onPlay={() => setView('home')} />
             ) : (
               <HomeScreen onNavigate={setView} />
             )}
@@ -237,6 +241,9 @@ function TopBar({
                 </span>
                 <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onNavigate('friends') }}>
                   <Users size={17} /> Friends
+                </button>
+                <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onNavigate('leaderboard') }}>
+                  <Trophy size={17} /> Leaderboard
                 </button>
                 <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onNavigate('history') }}>
                   <History size={17} /> Game history

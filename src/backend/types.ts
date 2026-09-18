@@ -43,6 +43,28 @@ export interface GameRecord {
   players: GameRecordPlayer[]
 }
 
+export interface LeaderboardEntry {
+  userId: string
+  name: string
+  avatarUrl: string | null
+  exp: number
+  level: number
+  intoLevel: number
+  games: number
+  wins: number
+  isMe: boolean
+  rank: number
+}
+
+export interface PlayerStats {
+  exp: number
+  rank: number
+  level: number
+  intoLevel: number
+  games: number
+  wins: number
+}
+
 export interface Backend {
   kind: 'local' | 'supabase'
   init(): Promise<void>
@@ -58,6 +80,9 @@ export interface Backend {
   searchPlayers(query: string): Promise<PlayerSearchResult[]>
   addFriend(friendId: string): Promise<void>
   removeFriend(friendId: string): Promise<void>
+
+  getLeaderboard(): Promise<LeaderboardEntry[]>
+  getMyStats(): Promise<PlayerStats | null>
 
   listMessages(): Promise<ChatMessage[]>
   sendMessage(text: string): Promise<void>

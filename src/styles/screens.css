@@ -1035,6 +1035,184 @@
 }
 
 /* =========================================================
+   Leaderboard
+   ========================================================= */
+.board-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.board-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.board-row--me {
+  background: var(--accent-2-soft);
+  border-color: var(--accent-2);
+}
+.board-row__rank {
+  width: 26px;
+  flex: none;
+  text-align: center;
+  font-weight: 900;
+  color: var(--ink-soft);
+}
+.board-row__medal {
+  font-size: 20px;
+}
+.board-row__you {
+  font-weight: 900;
+}
+.board-row__level {
+  flex: none;
+  font-weight: 900;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.board-row__exp {
+  flex: none;
+  font-weight: 900;
+  color: var(--accent-2);
+}
+.board-row__exp small {
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+.board-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  font-weight: 700;
+}
+
+/* =========================================================
+   EXP payout (winner screen)
+   ========================================================= */
+.exp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(420px, 100%);
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.exp-card__head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.exp-card__total {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--accent-2);
+  line-height: 1;
+}
+.exp-card__bar {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.exp-card__bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--accent-2), var(--primary));
+  transition: width 0.4s var(--ease-out);
+}
+.exp-card__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.exp-card__rows li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.exp-card__rows b {
+  color: var(--ink);
+}
+.board-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line-strong);
+}
+.board-mini__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.board-mini__list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+.board-mini__list li.board-mini__row--me {
+  background: var(--accent-2-soft);
+}
+.board-mini__rank {
+  width: 20px;
+  flex: none;
+  text-align: center;
+  font-weight: 900;
+  color: var(--ink-faint);
+}
+.board-mini__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.board-mini__xp {
+  font-weight: 900;
+  color: var(--accent-2);
+}
+.board-mini__me {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+.board-mini__me b {
+  color: var(--ink);
+}
+
+/* =========================================================
    Responsive
    ========================================================= */
 @media (max-width: 560px) {

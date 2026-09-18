@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Avatar } from '../ui/Avatar'
 import { ROLE_META } from '../../game/identity'
 import { useConfetti } from '../../hooks/useConfetti'
+import { ExpPayout } from './ExpPayout'
 import type { CastReveal, PublicPlayer, Winner } from '../../game/types'
 
 interface WinnerRevealProps {
@@ -76,6 +77,8 @@ export function WinnerReveal({
           Mr. White {mrWhiteGuessCorrect ? 'guessed it right' : 'guessed wrong'}
         </span>
       )}
+
+      <ExpPayout />
 
       <div className="col" style={{ gap: 10, width: '100%', marginTop: 8 }}>
         <span className="t-eyebrow">The cast</span>
