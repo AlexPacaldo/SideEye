@@ -25,10 +25,13 @@ export function VoteReveal({
   const [shown, setShown] = useState(reduce ? total : 0)
 
   useEffect(() => {
-    if (reduce) return
     if (shown >= total) {
       const handle = window.setTimeout(onDone, 1500)
       return () => window.clearTimeout(handle)
+    }
+    if (reduce) {
+      setShown(total)
+      return
     }
     const handle = window.setTimeout(() => setShown((s) => s + 1), 260)
     return () => window.clearTimeout(handle)
