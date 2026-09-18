@@ -9,9 +9,10 @@ import { useApp } from '../state/context'
 
 export function LobbyScreen() {
   const { snapshot, backend, safe } = useApp()
-  const room = snapshot.room!
   const me = snapshot.me
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const room = snapshot.room
+  if (!room) return null
 
   const isHost = room.hostId === me?.playerId
   const humans = room.players.filter((p) => !p.isBot)

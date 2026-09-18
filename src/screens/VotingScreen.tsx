@@ -28,7 +28,8 @@ function clueMap(room: RoomSnapshot): Map<string, string> {
 
 export function VotingScreen() {
   const { snapshot } = useApp()
-  const room = snapshot.room!
+  const room = snapshot.room
+  if (!room) return null
 
   if (room.mode === 'passplay') return <VotingPassPlay />
 

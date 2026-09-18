@@ -59,8 +59,9 @@ export function RoleRevealScreen() {
 
 function PassPlayRoleReveal() {
   const { snapshot, backend, safe } = useApp()
-  const room = snapshot.room!
-  const me = snapshot.me!
+  const room = snapshot.room
+  const me = snapshot.me
+  if (!room || !me) return null
 
   const current = room.players.find((p) => p.id === me.playerId)
   if (!current) {

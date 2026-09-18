@@ -6,8 +6,9 @@ import { buildClueEntries } from '../game/entries'
 
 export function DiscussionScreen() {
   const { snapshot, backend, safe } = useApp()
-  const room = snapshot.room!
-  const me = snapshot.me!
+  const room = snapshot.room
+  const me = snapshot.me
+  if (!room || !me) return null
   const entries = buildClueEntries(room, me.playerId)
 
   return (

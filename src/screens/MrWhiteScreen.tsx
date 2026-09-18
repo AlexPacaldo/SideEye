@@ -5,8 +5,9 @@ import { useApp } from '../state/context'
 
 export function MrWhiteScreen() {
   const { snapshot, backend, safe } = useApp()
-  const room = snapshot.room!
-  const me = snapshot.me!
+  const room = snapshot.room
+  const me = snapshot.me
+  if (!room || !me) return null
   const guesserId = room.mrWhiteGuessingId
   const guesser = room.players.find((p) => p.id === guesserId)
 

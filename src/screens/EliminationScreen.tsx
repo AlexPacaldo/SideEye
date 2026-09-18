@@ -3,7 +3,8 @@ import { useApp } from '../state/context'
 
 export function EliminationScreen() {
   const { snapshot } = useApp()
-  const room = snapshot.room!
+  const room = snapshot.room
+  if (!room) return null
   const last = room.lastEliminated
 
   if (!last) {

@@ -12,9 +12,10 @@ import type { PublicPlayer } from '../game/types'
 
 export function ClueScreen() {
   const { snapshot } = useApp()
-  const room = snapshot.room!
-  const [showRound, setShowRound] = useState(room.round > 1)
+  const room = snapshot.room
+  const [showRound, setShowRound] = useState(room ? room.round > 1 : false)
 
+  if (!room) return null
   if (room.mode === 'passplay') {
     return <PassPlayClue />
   }

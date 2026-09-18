@@ -4,11 +4,11 @@ import { useApp } from '../state/context'
 
 export function VoteRevealScreen() {
   const { snapshot, backend, safe } = useApp()
-  const room = snapshot.room!
+  const room = snapshot.room
 
   const { eliminatedId, tie } = useMemo(() => {
-    const tally = room.tally ?? []
-    const restriction = room.runoffIds ?? undefined
+    const tally = room?.tally ?? []
+    const restriction = room?.runoffIds ?? undefined
     const entries = restriction
       ? tally.filter((t) => restriction.includes(t.playerId))
       : tally
@@ -19,7 +19,9 @@ export function VoteRevealScreen() {
       eliminatedId: leaders.length === 1 ? leaders[0] : null,
       tie: leaders.length > 1,
     }
-  }, [room.tally, room.runoffIds])
+  }, [room?.tally, room?.runoffIds])
+
+  if (!room) return null
 
   return (
     <div className="reveal-screen">

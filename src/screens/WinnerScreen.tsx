@@ -3,9 +3,9 @@ import { useApp } from '../state/context'
 
 export function WinnerScreen() {
   const { snapshot, backend, safe } = useApp()
-  const room = snapshot.room!
+  const room = snapshot.room
 
-  if (!room.winner || !room.reveal) return null
+  if (!room || !room.winner || !room.reveal) return null
 
   return (
     <div className="reveal-screen">
