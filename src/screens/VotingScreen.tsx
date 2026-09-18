@@ -5,6 +5,7 @@ import { VoteTarget } from '../components/game/VoteTarget'
 import { Avatar } from '../components/ui/Avatar'
 import { GameTimer } from '../components/ui/GameTimer'
 import { useApp } from '../state/context'
+import { useVoiceTalking } from '../voice'
 import type { PublicPlayer, RoomSnapshot } from '../game/types'
 
 function candidatesFor(room: RoomSnapshot, voterId: string): PublicPlayer[] {
@@ -45,11 +46,41 @@ function VotingOnline() {
   const { snapshot, backend, safe } = useApp()
   const room = snapshot.room!
   const me = snapshot.me!
+  const talking = useVoiceTalking()
   const voted = room.submittedIds.includes(me.playerId)
   const [selected, setSelected] = useState<string | null>(null)
   const candidates = useMemo(() => candidatesFor(room, me.playerId), [room, me.playerId])
   const clues = useMemo(() => clueMap(room), [room])
   const alive = room.players.filter((p) => !room.eliminatedIds.includes(p.id))
+
+  if (room.eliminatedIds.includes(me.playerId)) {
+    return (
+      <div className="voting-screen">
+        <header className="phase-head">
+          <div className="col" style={{ gap: 2 }}>
+            <span className="t-eyebrow">
+              {room.phase === 'runoff' ? 'Runoff vote' : `Round ${room.round}`}
+            </span>
+            <h1 className="t-title">
+              {room.phase === 'runoff' ? 'RUN IT BACK.' : "WHO'S ACTING SUS?"}
+            </h1>
+          </div>
+        </header>
+        <div className="col center" style={{ gap: 14, padding: '30px 0' }}>
+          <span className="big-message">
+            YOU&apos;RE OUT. <span aria-hidden="true">👻</span>
+          </span>
+          <p className="t-body">No vote for you — watching from the side.</p>
+        </div>
+        <VoterStatus
+          players={alive}
+          doneIds={room.submittedIds}
+          meId={me.playerId}
+          talking={talking}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="voting-screen">
@@ -59,7 +90,7 @@ function VotingOnline() {
             {room.phase === 'runoff' ? 'Runoff vote' : `Round ${room.round}`}
           </span>
           <h1 className="t-title">
-            {room.phase === 'runoff' ? "RUN IT BACK." : "WHO'S ACTING SUS?"}
+            {room.phase === 'runoff' ? 'RUN IT BACK.' : "WHO'S ACTING SUS?"}
           </h1>
         </div>
         <GameTimer deadline={room.deadline} total={room.timerSeconds} />
@@ -86,6 +117,7 @@ function VotingOnline() {
             selected={selected}
             onSelect={setSelected}
             meId={me.playerId}
+            talking={talking}
           />
           <ConfirmBar
             selected={selected}
@@ -98,7 +130,12 @@ function VotingOnline() {
         </>
       )}
 
-      <VoterStatus players={alive} doneIds={room.submittedIds} meId={me.playerId} />
+      <VoterStatus
+        players={alive}
+        doneIds={room.submittedIds}
+        meId={me.playerId}
+        talking={talking}
+      />
     </div>
   )
 }
@@ -196,10 +233,12 @@ function VoterStatus({
   players,
   doneIds,
   meId,
+  talking,
 }: {
   players: PublicPlayer[]
   doneIds: string[]
   meId: string
+  talking: Record<string, boolean>
 }) {
   return (
     <div className="clue-status">
@@ -208,8 +247,20 @@ function VoterStatus({
         {players.map((p) => {
           const done = doneIds.includes(p.id)
           return (
-            <div key={p.id} className={'clue-status__row ' + (done ? 'is-done' : '')}>
-              <Avatar seed={p.avatarSeed} name={p.name} size={28} />
+            <div
+              key={p.id}
+              className={
+                'clue-status__row ' +
+                (done ? 'is-done ' : '') +
+                (talking[p.id] ? 'clue-status__row--talking' : '')
+              }
+            >
+              <Avatar
+                seed={p.avatarSeed}
+                name={p.name}
+                size={28}
+                talking={talking[p.id]}
+              />
               <span className="clue-status__name">
                 {p.name}
                 {p.id === meId ? ' (you)' : ''}

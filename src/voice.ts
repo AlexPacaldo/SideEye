@@ -1,4 +1,5 @@
 import Peer from 'peerjs'
+import { useSyncExternalStore } from 'react'
 import type { DataConnection, MediaConnection } from 'peerjs'
 
 export type VoiceStatus = 'idle' | 'joining' | 'live' | 'error' | 'left'
@@ -12,6 +13,17 @@ export interface VoiceState {
   selfId: string | null
   linking: boolean
   issue: string | null
+}
+
+export interface VoiceParticipant {
+  playerId: string
+  name: string
+}
+
+interface RosterEntry {
+  id: string
+  playerId: string
+  name: string
 }
 
 const PEER_PREFIX = 'sideeye'
@@ -46,15 +58,19 @@ let peer: Peer | null = null
 let roomCode: string | null = null
 let hosting = false
 let ownId: string | null = null
+let myInfo: VoiceParticipant | null = null
 let localStream: MediaStream | null = null
 let dataConn: DataConnection | null = null
-let waitingForRoster = false
 
 const guestConns = new Map<string, DataConnection>()
+const peerRefs = new Map<string, VoiceParticipant>()
 const outgoing = new Map<string, MediaConnection>()
 const incoming = new Map<string, MediaConnection>()
 const remotes = new Map<string, MediaStream>()
 const listeners = new Set<() => void>()
+
+let reconnectTimer: number | null = null
+let reconnectAttempts = 0
 
 let state: VoiceState = {
   status: 'idle',
@@ -93,6 +109,8 @@ function setState(patch: Partial<VoiceState>): void {
 
 export interface RemoteEntry {
   id: string
+  playerId: string
+  name: string
   stream: MediaStream
 }
 
@@ -102,44 +120,188 @@ export function getVoiceRemotes(): RemoteEntry[] {
   return remoteList
 }
 
-function addRemote(id: string, stream: MediaStream): void {
-  remotes.set(id, stream)
-  remoteList = [...remoteList, { id, stream }]
+export function getVoiceTalking(): Record<string, boolean> {
+  return talkingSnapshot
+}
+
+export function useVoiceTalking(): Record<string, boolean> {
+  return useSyncExternalStore(subscribeVoice, getVoiceTalking)
+}
+
+/* ---------------- talking detection ---------------- */
+
+const TALK_THRESHOLD = 0.012
+const TALK_RELEASE_MS = 350
+const talkingState = new Map<string, boolean>()
+const lastSound = new Map<string, number>()
+let talkingSnapshot: Record<string, boolean> = {}
+
+let audioCtx: AudioContext | null = null
+
+function getAudioCtx(): AudioContext | null {
+  if (typeof window === 'undefined') return null
+  const Ctor =
+    window.AudioContext ??
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext
+  if (!Ctor) return null
+  if (!audioCtx) audioCtx = new Ctor()
+  if (audioCtx.state === 'suspended') void audioCtx.resume().catch(() => {})
+  return audioCtx
+}
+
+interface Detector {
+  stop: () => void
+}
+
+const detectors = new Map<string, Detector>()
+
+function updateTalking(playerId: string, rms: number): void {
+  const now = Date.now()
+  const was = talkingState.get(playerId) ?? false
+  let next = was
+  if (rms >= TALK_THRESHOLD) {
+    next = true
+    lastSound.set(playerId, now)
+  } else if (now - (lastSound.get(playerId) ?? 0) > TALK_RELEASE_MS) {
+    next = false
+    lastSound.delete(playerId)
+  }
+  if (next === was) return
+  talkingState.set(playerId, next)
+  const snap: Record<string, boolean> = {}
+  talkingState.forEach((v, k) => {
+    if (v) snap[k] = true
+  })
+  talkingSnapshot = snap
+  emit()
+}
+
+function attachDetector(peerId: string, playerId: string, stream: MediaStream): void {
+  if (detectors.has(peerId)) return
+  const ctx = getAudioCtx()
+  if (!ctx) return
+  try {
+    const source = ctx.createMediaStreamSource(stream)
+    const analyser = ctx.createAnalyser()
+    analyser.fftSize = 1024
+    analyser.smoothingTimeConstant = 0.35
+    source.connect(analyser)
+    const buffer = new Float32Array(analyser.fftSize)
+    const timer = window.setInterval(() => {
+      analyser.getFloatTimeDomainData(buffer)
+      let sum = 0
+      for (let i = 0; i < buffer.length; i += 1) sum += buffer[i] * buffer[i]
+      updateTalking(playerId, Math.sqrt(sum / buffer.length))
+    }, 120)
+    detectors.set(peerId, {
+      stop: () => {
+        window.clearInterval(timer)
+        try {
+          source.disconnect()
+          analyser.disconnect()
+        } catch {
+          /* noop */
+        }
+      },
+    })
+  } catch {
+    /* noop */
+  }
+}
+
+function detachDetector(peerId: string): void {
+  const det = detectors.get(peerId)
+  if (!det) return
+  det.stop()
+  detectors.delete(peerId)
+}
+
+function addRemote(peerId: string, stream: MediaStream): void {
+  remotes.set(peerId, stream)
+  refreshEntry(peerId)
   setState({ connected: remotes.size })
 }
 
-function removeRemote(id: string): void {
-  if (!remotes.delete(id)) return
-  remoteList = remoteList.filter((r) => r.id !== id)
+function refreshEntry(peerId: string): void {
+  const stream = remotes.get(peerId)
+  if (!stream) return
+  const ref = peerRefs.get(peerId)
+  const entry: RemoteEntry = {
+    id: peerId,
+    playerId: ref?.playerId ?? peerId,
+    name: ref?.name ?? 'Guest',
+    stream,
+  }
+  remoteList = [...remoteList.filter((r) => r.id !== peerId), entry]
+  attachDetector(peerId, entry.playerId, stream)
+  emit()
+}
+
+function removeRemote(peerId: string, playerId?: string): void {
+  if (!remotes.delete(peerId)) return
+  remoteList = remoteList.filter((r) => r.id !== peerId)
+  detachDetector(peerId)
+  if (playerId && talkingState.get(playerId)) {
+    talkingState.set(playerId, false)
+    const snap: Record<string, boolean> = {}
+    talkingState.forEach((v, k) => {
+      if (v) snap[k] = true
+    })
+    talkingSnapshot = snap
+  }
   setState({ connected: remotes.size })
+}
+
+function dropPeer(peerId: string): void {
+  const call = outgoing.get(peerId) ?? incoming.get(peerId)
+  if (call) {
+    try {
+      call.close()
+    } catch {
+      /* noop */
+    }
+  }
+  outgoing.delete(peerId)
+  incoming.delete(peerId)
+  const ref = peerRefs.get(peerId)
+  removeRemote(peerId, ref?.playerId)
+  peerRefs.delete(peerId)
 }
 
 /* ---------------- data channel ---------------- */
 
 function onData(raw: unknown): void {
   if (!peer || !localStream) return
-  const msg = raw as { type?: string; peers?: string[] }
+  const msg = raw as {
+    type?: string
+    me?: RosterEntry
+    peers?: RosterEntry[]
+  }
   if (msg?.type !== 'roster' || !Array.isArray(msg.peers)) return
-  waitingForRoster = false
   setState({ linking: false })
-  for (const id of msg.peers) {
-    if (id === ownId) continue
-    if (outgoing.has(id) || incoming.has(id)) continue
-    const call = peer.call(id, localStream)
-    outgoing.set(id, call)
+  const all = msg.me ? [msg.me, ...msg.peers] : msg.peers
+  for (const ent of all) {
+    if (!ent?.id) continue
+    peerRefs.set(ent.id, { playerId: ent.playerId || ent.id, name: ent.name || 'Guest' })
+    refreshEntry(ent.id)
+    if (ent.id === ownId) continue
+    if (outgoing.has(ent.id) || incoming.has(ent.id)) continue
+    const call = peer.call(ent.id, localStream)
+    outgoing.set(ent.id, call)
     call.on('stream', (stream) => {
       setState({ issue: null })
-      addRemote(id, stream)
+      addRemote(ent.id, stream)
     })
     call.on('close', () => {
-      outgoing.delete(id)
-      removeRemote(id)
+      outgoing.delete(ent.id)
+      removeRemote(ent.id)
     })
     call.on('error', () => {
-      outgoing.delete(id)
-      removeRemote(id)
+      outgoing.delete(ent.id)
+      removeRemote(ent.id)
       setState({
-        issue: 'Audio link to a party member failed — try having everyone re-join voice chat.',
+        issue: 'Audio link to a party member failed — they may need to re-join voice chat.',
       })
     })
   }
@@ -151,36 +313,81 @@ function onPeerOpen(): void {
   if (!peer) return
   setState({ status: 'live', error: null, hosting, selfId: ownId })
   if (hosting || !roomCode) return
-  waitingForRoster = true
   setState({ linking: true })
   dataConn = peer.connect(`${PEER_PREFIX}-${roomCode}`, { reliable: true })
   dataConn.on('data', onData)
   dataConn.on('open', () => {
-    /* roster arrives over 'data' — listener attached up front */
+    try {
+      dataConn?.send({
+        type: 'join',
+        playerId: myInfo?.playerId ?? ownId,
+        name: myInfo?.name ?? 'Guest',
+      })
+    } catch {
+      /* noop */
+    }
   })
   dataConn.on('error', () => {
     if (state.status === 'error') return
-    failVoice('Could not reach the host\u2019s voice chat.')
+    scheduleGuestReconnect('Could not reach the host\u2019s voice chat.')
   })
   dataConn.on('close', () => {
-    if (waitingForRoster) failVoice('The host isn\u2019t on voice chat yet.')
-    else if (state.status === 'live') failVoice('The host left voice chat.')
+    if (state.status === 'error' || state.status === 'left') return
+    scheduleGuestReconnect('The voice host left — reconnecting…')
+  })
+}
+
+function broadcastRoster(): void {
+  if (!hosting || !ownId) return
+  const entries: RosterEntry[] = [
+    {
+      id: ownId,
+      playerId: myInfo?.playerId ?? ownId,
+      name: myInfo?.name ?? 'Host',
+    },
+    ...Array.from(guestConns.keys()).map((pid) => {
+      const ref = peerRefs.get(pid)
+      return {
+        id: pid,
+        playerId: ref?.playerId ?? pid,
+        name: ref?.name ?? 'Guest',
+      }
+    }),
+  ]
+  const payload = { type: 'roster', me: entries[0], peers: entries }
+  guestConns.forEach((conn) => {
+    try {
+      conn.send(payload)
+    } catch {
+      /* noop */
+    }
   })
 }
 
 function onHostConnection(conn: DataConnection): void {
   conn.on('open', () => {
     guestConns.set(conn.peer, conn)
-    conn.send({
-      type: 'roster',
-      peers: [ownId!, ...Array.from(guestConns.keys())],
-    })
+    broadcastRoster()
+  })
+  conn.on('data', (raw) => {
+    const msg = raw as { type?: string; playerId?: string; name?: string }
+    if (msg?.type === 'join' && msg.playerId) {
+      peerRefs.set(conn.peer, {
+        playerId: msg.playerId,
+        name: msg.name ?? msg.playerId,
+      })
+      broadcastRoster()
+      refreshEntry(conn.peer)
+    }
   })
   conn.on('close', () => {
     guestConns.delete(conn.peer)
+    dropPeer(conn.peer)
+    broadcastRoster()
   })
   conn.on('error', () => {
     guestConns.delete(conn.peer)
+    dropPeer(conn.peer)
   })
 }
 
@@ -210,33 +417,35 @@ function onIncomingCall(call: MediaConnection): void {
 function onPeerError(err: { type?: string }): void {
   if (!peer) return
   const type = err?.type
-  let message: string
   if (type === 'unavailable-id') {
-    message = 'Another voice chat is already running for this room.'
+    failVoice('Another voice chat is already running for this room.')
   } else if (type === 'peer-unavailable') {
-    message = 'The voice host isn\u2019t connected yet.'
+    if (state.status === 'live') scheduleGuestReconnect('The voice host isn\u2019t connected yet — reconnecting…')
   } else if (type === 'browser-incompatible') {
-    message = 'This browser doesn\u2019t support voice chat.'
+    failVoice('This browser doesn\u2019t support voice chat.')
   } else if (
     type === 'network' ||
     type === 'socket-error' ||
     type === 'socket-closed' ||
     type === 'server-error'
   ) {
-    message = 'Could not reach the voice server. Check your connection and try again.'
+    scheduleGuestReconnect('Could not reach the voice server. Reconnecting…')
   } else {
-    message = 'Voice chat hit an error. Try again.'
+    failVoice('Voice chat hit an error. Try again.')
   }
-  failVoice(message)
 }
 
 /* ---------------- lifecycle ---------------- */
 
-function cleanup(): void {
-  roomCode = null
-  hosting = false
-  ownId = null
-  waitingForRoster = false
+function resetVoiceCore(): void {
+  if (peer) {
+    try {
+      peer.destroy()
+    } catch {
+      /* noop */
+    }
+    peer = null
+  }
   if (dataConn) {
     try {
       dataConn.close()
@@ -269,24 +478,52 @@ function cleanup(): void {
     }
   })
   incoming.clear()
+  peerRefs.clear()
+  detectors.forEach((d) => d.stop())
+  detectors.clear()
   remotes.clear()
   remoteList = []
+  talkingState.clear()
+  lastSound.clear()
+  talkingSnapshot = {}
+  ownId = null
   if (localStream) {
     localStream.getTracks().forEach((t) => t.stop())
     localStream = null
   }
+  if (reconnectTimer != null) {
+    window.clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+  reconnectAttempts = 0
+}
+
+function scheduleGuestReconnect(reason: string): void {
+  if (reconnectTimer != null) return
+  if (hosting) return
+  if (state.status === 'error' || state.status === 'left') return
+  if (reconnectAttempts >= 4) {
+    failVoice(reason)
+    return
+  }
+  reconnectAttempts += 1
+  setState({ status: 'joining', issue: reason, linking: true })
+  const delay = 800 * reconnectAttempts
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null
+    if (!roomCode || hosting || state.status === 'error' || state.status === 'left') return
+    const code = roomCode
+    const info = myInfo
+    resetVoiceCore()
+    void joinVoice(code, false, info ?? { playerId: 'guest', name: 'Guest' })
+  }, delay)
 }
 
 function failVoice(message: string): void {
-  if (peer) {
-    try {
-      peer.destroy()
-    } catch {
-      /* noop */
-    }
-    peer = null
-  }
-  cleanup()
+  resetVoiceCore()
+  roomCode = null
+  hosting = false
+  myInfo = null
   setState({
     status: 'error',
     error: message,
@@ -301,15 +538,10 @@ function failVoice(message: string): void {
 
 export function leaveVoice(): void {
   const hadPeer = Boolean(peer)
-  if (peer) {
-    try {
-      peer.destroy()
-    } catch {
-      /* noop */
-    }
-    peer = null
-  }
-  cleanup()
+  resetVoiceCore()
+  roomCode = null
+  hosting = false
+  myInfo = null
   setState({
     status: hadPeer ? 'left' : 'idle',
     error: null,
@@ -322,8 +554,17 @@ export function leaveVoice(): void {
   })
 }
 
-export async function joinVoice(code: string, isHost: boolean): Promise<void> {
+export async function joinVoice(
+  code: string,
+  isHost: boolean,
+  me: VoiceParticipant,
+): Promise<void> {
   if (peer || state.status === 'joining') return
+  if (reconnectTimer != null) {
+    window.clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+  reconnectAttempts = 0
   setState({
     status: 'joining',
     error: null,
@@ -336,25 +577,29 @@ export async function joinVoice(code: string, isHost: boolean): Promise<void> {
   })
   roomCode = code
   hosting = isHost
+  myInfo = me
 
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true },
-    })
-  } catch {
-    roomCode = null
-    hosting = false
-    setState({
-      status: 'error',
-      error:
-        'Could not reach your microphone. Check the browser permission and try again.',
-      connected: 0,
-      hosting: false,
-      selfId: null,
-      linking: false,
-      issue: null,
-    })
-    return
+  if (!localStream || localStream.getAudioTracks().every((t) => t.readyState === 'ended')) {
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      })
+    } catch {
+      roomCode = null
+      hosting = false
+      myInfo = null
+      setState({
+        status: 'error',
+        error:
+          'Could not reach your microphone. Check the browser permission and try again.',
+        connected: 0,
+        hosting: false,
+        selfId: null,
+        linking: false,
+        issue: null,
+      })
+      return
+    }
   }
 
   const id = isHost

@@ -9,6 +9,7 @@ import {
   leaveVoice,
   subscribeVoice,
   toggleVoiceMute,
+  useVoiceTalking,
 } from '../../voice'
 import { Modal } from '../ui/Modal'
 
@@ -43,8 +44,11 @@ export function VoiceChat() {
   const me = snapshot.me
   const voice = useSyncExternalStore(subscribeVoice, getVoice)
   const remotes = useSyncExternalStore(subscribeVoice, getVoiceRemotes)
+  const talking = useVoiceTalking()
   const [open, setOpen] = useState(false)
   const lastCode = useRef<string | null>(null)
+  const lastHost = useRef<string | null>(null)
+  const wanted = useRef(false)
 
   useEffect(() => {
     if (!room || room.mode !== 'online') return
@@ -61,9 +65,31 @@ export function VoiceChat() {
     [],
   )
 
+  const connected = room != null && room.mode === 'online'
+  const isHost = room && connected ? room.hostId === me?.playerId : false
+  const myName =
+    me && room
+      ? (room.players.find((p) => p.id === me.playerId)?.name ?? 'You')
+      : 'You'
+
+  useEffect(() => {
+    if (!connected || !me) return
+    const changed =
+      lastHost.current != null && lastHost.current !== room?.hostId
+    lastHost.current = room?.hostId ?? null
+    if (!changed) return
+    const wasActive = wanted.current
+    leaveVoice()
+    if (wasActive && room?.code) {
+      void joinVoice(room.code, isHost, {
+        playerId: me.playerId,
+        name: myName,
+      })
+    }
+  }, [connected, me, room?.hostId, room?.code, isHost, myName])
+
   if (!room || room.mode !== 'online') return null
 
-  const isHost = room.hostId === me?.playerId
   const live = voice.status === 'live'
   const joining = voice.status === 'joining'
   const classNames = [
@@ -117,7 +143,11 @@ export function VoiceChat() {
               </p>
             )}
 
-            {joining && <p className="t-body">Connecting…</p>}
+            {voice.status === 'joining' && (
+              <p className="t-body">
+                {voice.issue ? voice.issue : 'Connecting…'}
+              </p>
+            )}
 
             {live ? (
               <div className="col" style={{ gap: 14 }}>
@@ -145,6 +175,31 @@ export function VoiceChat() {
                     </span>
                   )}
                 </div>
+                {remotes.length > 0 && (
+                  <div className="voice-list">
+                    {remotes.map((r) => (
+                      <div
+                        key={r.id}
+                        className={
+                          'voice-list__row' +
+                          (talking[r.playerId]
+                            ? ' voice-list__row--talking'
+                            : '')
+                        }
+                      >
+                        <span
+                          className={
+                            'voice-list__dot' +
+                            (talking[r.playerId]
+                              ? ' voice-list__dot--talking'
+                              : '')
+                          }
+                        />
+                        <span className="voice-list__name">{r.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <button
                   type="button"
                   className="btn btn--soft btn--block"
@@ -157,6 +212,7 @@ export function VoiceChat() {
                   type="button"
                   className="btn btn--ghost btn--block"
                   onClick={() => {
+                    wanted.current = false
                     leaveVoice()
                     setOpen(false)
                   }}
@@ -182,7 +238,13 @@ export function VoiceChat() {
                   type="button"
                   className="btn btn--primary btn--block"
                   disabled={joining}
-                  onClick={() => void joinVoice(room.code, isHost)}
+                  onClick={() => {
+                    wanted.current = true
+                    void joinVoice(room.code, isHost, {
+                      playerId: me?.playerId ?? '',
+                      name: myName,
+                    })
+                  }}
                 >
                   <Phone size={18} />
                   {joining ? 'CONNECTING…' : 'JOIN VOICE'}

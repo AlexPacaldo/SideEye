@@ -7,6 +7,7 @@ interface PlayerBubbleProps {
   isTurn?: boolean
   submitted?: boolean
   eliminated?: boolean
+  talking?: boolean
   status?: string
   size?: number
   onClick?: () => void
@@ -21,6 +22,7 @@ export function PlayerBubble({
   isTurn = false,
   submitted = false,
   eliminated = false,
+  talking = false,
   status,
   size = 64,
   onClick,
@@ -40,24 +42,26 @@ export function PlayerBubble({
             ? 'ready'
             : 'default'
 
-  const label =
-    status ??
-    (eliminated
-      ? 'out'
-      : !player.connected
-        ? 'away'
-        : isTurn
-          ? 'your turn'
-          : submitted
-            ? 'locked'
-            : player.ready && showReady
-              ? 'ready'
-              : 'not ready')
+  const label = talking
+    ? 'talking'
+    : (status ??
+      (eliminated
+        ? 'out'
+        : !player.connected
+          ? 'away'
+          : isTurn
+            ? 'your turn'
+            : submitted
+              ? 'locked'
+              : player.ready && showReady
+                ? 'ready'
+                : 'not ready'))
 
   const className = [
     'player-bubble',
     isSelf ? 'player-bubble--self' : '',
     isTurn ? 'player-bubble--turn' : '',
+    talking ? 'player-bubble--talking' : '',
     player.ready && showReady && !isTurn && !eliminated ? 'player-bubble--ready' : '',
     eliminated ? 'player-bubble--eliminated' : '',
     onClick ? 'player-bubble--clickable' : '',
@@ -74,6 +78,7 @@ export function PlayerBubble({
         size={size}
         state={state}
         host={player.isHost}
+        talking={talking}
       />
       <span className="player-bubble__name">{player.name}</span>
       <span className="player-bubble__status">{label}</span>

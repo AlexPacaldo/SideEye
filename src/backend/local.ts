@@ -23,6 +23,8 @@ import {
 } from '../game/types'
 import { BackendError, type Backend, type Friend, type GameRecord, type PlayerSearchResult } from './types'
 
+const CLUE_TURN_SECONDS = 60
+
 const BOT_NAMES = [
   'Mia',
   'Carlo',
@@ -528,10 +530,11 @@ async submitClue(text: string): Promise<void> {
     this.castVoteFor(this.currentActor(), targetId)
   }
 
-  private castVoteFor(playerId: string | null, targetId: string | null): void {
+private castVoteFor(playerId: string | null, targetId: string | null): void {
     if (!this.room) return
     if (this.room.phase !== 'voting' && this.room.phase !== 'runoff') return
     if (!playerId) return
+    if (!this.voterIds(this.room.phase === 'runoff').includes(playerId)) return
     if (this.internal!.roundVotes.some((v) => v.voterId === playerId && v.round === this.room!.round)) {
       return
     }
@@ -714,6 +717,10 @@ if (phase === 'clue') {
           ? this.aliveIds()
           : this.shuffleOrder(this.aliveIds()),
       )
+      if (room.mode !== 'passplay') {
+        room.deadline = Date.now() + CLUE_TURN_SECONDS * 1000
+        room.timerSeconds = CLUE_TURN_SECONDS
+      }
     }
     if (phase === 'voting' || phase === 'runoff') {
       room.submittedIds = []
@@ -947,6 +954,10 @@ private advancePass(): void {
       while (idx < order.length && hasClue(order[idx])) idx += 1
       if (idx > order.length - 1) idx = order.length - 1
       this.room.passIndex = idx
+      if (this.room.mode !== 'passplay') {
+        this.room.deadline = Date.now() + CLUE_TURN_SECONDS * 1000
+        this.room.timerSeconds = CLUE_TURN_SECONDS
+      }
       return
     }
     let idx = this.room.passIndex + 1
@@ -1115,17 +1126,23 @@ this.room.phase === 'clue'
           this.enterPhase('clue', this.room.settings.clueSeconds)
         }
         break
-      case 'clue': {
-        const missing = this.aliveIds().filter(
-          (id) => !this.room!.clues.some((c) => c.playerId === id && c.round === this.room!.round),
-        )
-        missing.forEach((id, i) => {
-          this.room!.clues = [
-            ...this.room!.clues,
-            { playerId: id, text: i === 0 ? 'hmm' : '…', round: this.room!.round },
-          ]
-        })
-        this.enterPhase('clueReveal', null)
+case 'clue': {
+        const order = this.internal?.passOrder ?? []
+        const cur = order[this.room!.passIndex]
+        if (this.room!.mode !== 'passplay' && cur) {
+          this.submitClueFor(cur, '…')
+        } else {
+          const missing = this.aliveIds().filter(
+            (id) => !this.room!.clues.some((c) => c.playerId === id && c.round === this.room!.round),
+          )
+          missing.forEach((id, i) => {
+            this.room!.clues = [
+              ...this.room!.clues,
+              { playerId: id, text: i === 0 ? 'hmm' : '…', round: this.room!.round },
+            ]
+          })
+          this.enterPhase('clueReveal', null)
+        }
         break
       }
       case 'clueReveal':

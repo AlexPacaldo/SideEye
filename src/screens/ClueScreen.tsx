@@ -9,6 +9,7 @@ import { Avatar } from '../components/ui/Avatar'
 import { GameTimer } from '../components/ui/GameTimer'
 import { Loading } from '../components/ui/Loading'
 import { useApp } from '../state/context'
+import { useVoiceTalking } from '../voice'
 import type { PublicPlayer } from '../game/types'
 
 export function ClueScreen() {
@@ -37,6 +38,7 @@ function OnlineClue() {
   const { snapshot, backend, safe } = useApp()
   const room = snapshot.room!
   const me = snapshot.me!
+  const talking = useVoiceTalking()
   const self = room.players.find((p) => p.id === me.playerId)
   const submitted = room.submittedIds.includes(me.playerId)
   const alive = room.players.filter((p) => !room.eliminatedIds.includes(p.id))
@@ -116,7 +118,7 @@ function OnlineClue() {
       {clues.length > 0 && (
         <div className="col" style={{ gap: 8, alignSelf: 'stretch' }}>
           <span className="t-eyebrow">Clues so far</span>
-          <ClueStack entries={clues} />
+          <ClueStack entries={clues} talkingIds={talking} />
         </div>
       )}
 
@@ -124,6 +126,7 @@ function OnlineClue() {
         players={alive}
         doneIds={room.submittedIds}
         meId={me.playerId}
+        talking={talking}
       />
     </div>
   )
@@ -164,10 +167,12 @@ function PlayerStatus({
   players,
   doneIds,
   meId,
+  talking,
 }: {
   players: PublicPlayer[]
   doneIds: string[]
   meId: string
+  talking: Record<string, boolean>
 }) {
   return (
     <div className="clue-status">
@@ -178,9 +183,18 @@ function PlayerStatus({
           return (
             <div
               key={p.id}
-              className={'clue-status__row ' + (done ? 'is-done' : '')}
+              className={
+                'clue-status__row ' +
+                (done ? 'is-done ' : '') +
+                (talking[p.id] ? 'clue-status__row--talking' : '')
+              }
             >
-              <Avatar seed={p.avatarSeed} name={p.name} size={28} />
+              <Avatar
+                seed={p.avatarSeed}
+                name={p.name}
+                size={28}
+                talking={talking[p.id]}
+              />
               <span className="clue-status__name">
                 {p.name}
                 {p.id === meId ? ' (you)' : ''}

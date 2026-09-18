@@ -31,6 +31,7 @@ interface AvatarProps {
   size?: number
   state?: AvatarState
   host?: boolean
+  talking?: boolean
   className?: string
 }
 
@@ -41,6 +42,7 @@ export function Avatar({
   size = 56,
   state = 'default',
   host = false,
+  talking = false,
   className = '',
 }: AvatarProps) {
   const bg = PALETTE[Math.abs(seed) % PALETTE.length]
@@ -53,6 +55,7 @@ export function Avatar({
     'avatar',
     `avatar--${state}`,
     host ? 'avatar--host' : '',
+    talking ? 'avatar--talking' : '',
     className,
   ]
     .filter(Boolean)

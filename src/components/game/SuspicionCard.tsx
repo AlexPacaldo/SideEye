@@ -8,6 +8,7 @@ interface SuspicionCardProps {
   selected?: boolean
   disabled?: boolean
   isMe?: boolean
+  talking?: boolean
   onClick?: () => void
   index?: number
 }
@@ -18,6 +19,7 @@ export function SuspicionCard({
   selected = false,
   disabled = false,
   isMe = false,
+  talking = false,
   onClick,
   index = 0,
 }: SuspicionCardProps) {
@@ -28,6 +30,7 @@ export function SuspicionCard({
         'suspicion-card',
         selected ? 'suspicion-card--selected' : '',
         isMe ? 'suspicion-card--me' : '',
+        talking ? 'suspicion-card--talking' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -46,6 +49,7 @@ export function SuspicionCard({
         size={62}
         state={selected ? 'submitted' : 'default'}
         host={player.isHost}
+        talking={talking}
       />
       <span className="suspicion-card__name">{player.name}</span>
       {clue && <span className="suspicion-card__clue">{clue}</span>}

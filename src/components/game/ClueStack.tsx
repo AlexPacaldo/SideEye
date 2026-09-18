@@ -11,9 +11,10 @@ export interface ClueEntry {
 interface ClueStackProps {
   entries: ClueEntry[]
   revealedCount?: number
+  talkingIds?: Record<string, boolean>
 }
 
-export function ClueStack({ entries, revealedCount }: ClueStackProps) {
+export function ClueStack({ entries, revealedCount, talkingIds }: ClueStackProps) {
   return (
     <div className="clue-stack">
       {entries.map((entry, i) => {
@@ -25,6 +26,7 @@ export function ClueStack({ entries, revealedCount }: ClueStackProps) {
               'clue-line',
               entry.isYou ? 'clue-line--you' : '',
               entry.blank || !revealed ? 'clue-line--blank' : '',
+              talkingIds?.[entry.playerId] ? 'clue-line--talking' : '',
             ]
               .filter(Boolean)
               .join(' ')}

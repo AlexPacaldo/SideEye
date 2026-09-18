@@ -84,6 +84,11 @@
     rgba(0, 0, 0, 0.12) 6px 12px
   );
 }
+.avatar--talking {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent-2) 80%, transparent),
+    0 0 20px color-mix(in srgb, var(--accent-2) 55%, transparent);
+}
 
 /* =========================================================
    Logo
@@ -320,6 +325,20 @@
 }
 .player-bubble--turn .player-bubble__status {
   color: #9a6100;
+}
+.player-bubble--talking {
+  border-color: color-mix(in srgb, var(--accent-2) 55%, transparent);
+  background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+}
+.player-bubble--talking .player-bubble__name,
+.clue-status__row--talking .clue-status__name,
+.suspicion-card--talking .suspicion-card__name,
+.clue-line--talking .clue-line__who {
+  color: var(--accent-2);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent-2) 60%, transparent);
+}
+.player-bubble--talking .player-bubble__status {
+  color: var(--accent-2);
 }
 
 /* status check */

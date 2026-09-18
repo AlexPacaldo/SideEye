@@ -8,6 +8,7 @@ interface VoteTargetProps {
   onSelect: (id: string) => void
   meId: string
   disabled?: boolean
+  talking?: Record<string, boolean>
 }
 
 export function VoteTarget({
@@ -17,6 +18,7 @@ export function VoteTarget({
   onSelect,
   meId,
   disabled = false,
+  talking,
 }: VoteTargetProps) {
   return (
     <div className="suspicion-grid" role="radiogroup" aria-label="Choose who to vote out">
@@ -28,6 +30,7 @@ export function VoteTarget({
           selected={selected === player.id}
           isMe={player.id === meId}
           disabled={disabled}
+          talking={talking?.[player.id]}
           onClick={() => onSelect(player.id)}
           index={i}
         />

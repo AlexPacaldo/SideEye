@@ -6,10 +6,12 @@ import { PlayerBubble } from '../components/game/PlayerBubble'
 import { Decor } from '../components/ui/Decor'
 import { Modal } from '../components/ui/Modal'
 import { useApp } from '../state/context'
+import { useVoiceTalking } from '../voice'
 
 export function LobbyScreen() {
   const { snapshot, backend, safe } = useApp()
   const me = snapshot.me
+  const talking = useVoiceTalking()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const room = snapshot.room
   if (!room) return null
@@ -67,6 +69,7 @@ export function LobbyScreen() {
               <PlayerBubble
                 player={player}
                 isSelf={player.id === me?.playerId}
+                talking={talking[player.id]}
                 size={72}
               />
             </motion.div>

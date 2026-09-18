@@ -168,6 +168,45 @@
   justify-content: space-between;
   gap: 10px;
 }
+.voice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.voice-list__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  transition: background-color 0.18s ease;
+}
+.voice-list__row--talking {
+  background: color-mix(in srgb, var(--accent-2) 12%, var(--surface-2));
+}
+.voice-list__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink-faint) 40%, transparent);
+  flex: none;
+  transition: background-color 0.15s ease;
+}
+.voice-list__dot--talking {
+  background: var(--accent-2);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-2) 75%, transparent);
+}
+.voice-list__name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.voice-list__row--talking .voice-list__name {
+  color: var(--accent-2);
+}
 
 /* =========================================================
    Home

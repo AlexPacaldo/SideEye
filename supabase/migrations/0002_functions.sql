@@ -288,6 +288,11 @@ begin
         )
       end
     where code = p_code;
+    if r.mode = 'online' then
+      update public.rooms
+        set deadline = now() + interval '60 seconds', timer_seconds = 60
+      where code = p_code;
+    end if;
 
   elsif p_phase in ('voting', 'runoff') then
     update public.rooms set submitted_ids = '{}' where code = p_code;
@@ -355,6 +360,11 @@ begin
     end loop;
     if idx > v_len then idx := v_len; end if;
     update public.rooms set pass_index = idx - 1, pass_revealed = false, phase_started_at = now() where code = p_code;
+    if r.mode = 'online' then
+      update public.rooms
+        set deadline = now() + interval '60 seconds', timer_seconds = 60
+      where code = p_code;
+    end if;
   else
     idx := r.pass_index + 1;
     while idx < v_len loop
@@ -429,6 +439,7 @@ declare
 begin
   select * into r from public.rooms where code = p_code for update;
   if r.code is null or r.phase not in ('voting', 'runoff') or p_voter is null then return; end if;
+  if not (p_voter = any (private.voter_ids(p_code, r.phase = 'runoff'))) then return; end if;
   if exists (
     select 1 from public.votes
     where room_code = p_code and voter_id = p_voter and round = r.round
@@ -821,17 +832,21 @@ begin
     end if;
 
   elsif r.phase = 'clue' then
-    v_missing := array(
-      select a from unnest(private.alive_ids(p_code)) a
-      where not exists (
-        select 1 from public.clues c
-        where c.room_code = p_code and c.player_id = a and c.round = r.round
-      )
-    );
-    insert into public.clues (room_code, player_id, text, round)
-    select p_code, m.id, case when m.ord = 1 then 'hmm' else '…' end, r.round
-    from unnest(v_missing) with ordinality as m(id, ord);
-    perform private.enter_phase(p_code, 'clueReveal', null);
+    if r.mode = 'online' and r.pass_order[r.pass_index + 1] is not null then
+      perform private.submit_clue(p_code, r.pass_order[r.pass_index + 1], '…');
+    else
+      v_missing := array(
+        select a from unnest(private.alive_ids(p_code)) a
+        where not exists (
+          select 1 from public.clues c
+          where c.room_code = p_code and c.player_id = a and c.round = r.round
+        )
+      );
+      insert into public.clues (room_code, player_id, text, round)
+      select p_code, m.id, case when m.ord = 1 then 'hmm' else '…' end, r.round
+      from unnest(v_missing) with ordinality as m(id, ord);
+      perform private.enter_phase(p_code, 'clueReveal', null);
+    end if;
 
   elsif r.phase = 'clueReveal' then
     perform private.enter_phase(p_code, 'discussion', (r.settings ->> 'discussionSeconds')::int);
@@ -929,15 +944,6 @@ begin
                where room_code = p_code and is_bot loop
         perform private.bot_clue(p_code, b.player_id);
       end loop;
-      if r.mode = 'online'
-         and now() >= r.phase_started_at + interval '45 seconds'
-         and r.pass_order[r.pass_index + 1] is not null
-         and not exists (
-           select 1 from public.clues
-           where room_code = p_code and player_id = r.pass_order[r.pass_index + 1] and round = r.round
-         ) then
-        perform private.submit_clue(p_code, r.pass_order[r.pass_index + 1], '…');
-      end if;
 
     elsif r.phase in ('voting', 'runoff') then
       for b in select player_id from public.room_players
