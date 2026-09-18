@@ -24,7 +24,7 @@ export function RoleRevealScreen() {
     <div className="role-screen">
       <header className="role-screen__head">
         <span className="t-eyebrow">Round {room.round}</span>
-        <h1 className="t-title">Your role is…</h1>
+        <h1 className="t-title">Your word is…</h1>
         <p className="t-body">Keep it to yourself. Seriously.</p>
       </header>
 

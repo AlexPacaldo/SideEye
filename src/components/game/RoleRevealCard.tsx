@@ -27,10 +27,10 @@ export function RoleRevealCard({
             cursor: revealed ? 'default' : 'pointer',
             border: 'none',
           }}
-          aria-label="Reveal your role"
+          aria-label="Reveal your word"
         >
           <span className="role-card__hint" style={{ color: 'var(--ink-faint)' }}>
-            Your role is
+            Your word is
           </span>
           <svg width="120" height="150" viewBox="0 0 120 150" aria-hidden="true">
             <rect
@@ -63,14 +63,20 @@ export function RoleRevealCard({
           <span className="role-card__cover-word">TAP TO REVEAL</span>
         </button>
 
-        <div className={`role-card__face role-card__front role-card__front--${role}`}>
-          <span className="role-card__hint">Your role</span>
-          <span className="role-card__glyph" aria-hidden="true">
-            {meta.glyph}
+        <div
+          className={`role-card__face role-card__front ${
+            role === 'mrwhite' ? 'role-card__front--mrwhite' : 'role-card__front--word'
+          }`}
+        >
+          <span className="role-card__hint">
+            {role === 'mrwhite' ? 'You are' : 'Your word'}
           </span>
-          <span className="role-card__role">{meta.short}</span>
           {role === 'mrwhite' ? (
             <>
+              <span className="role-card__glyph" aria-hidden="true">
+                {meta.glyph}
+              </span>
+              <span className="role-card__role">{meta.short}</span>
               <span className="role-card__word">NO WORD FOR YOU</span>
               <p className="role-card__note">
                 Listen carefully. Blend in. Don&apos;t get caught.
@@ -81,9 +87,7 @@ export function RoleRevealCard({
               <span className="role-card__word">YOUR WORD</span>
               <span className="role-card__secret">{word ?? '—'}</span>
               <p className="role-card__note">
-                {role === 'undercover'
-                  ? 'Close enough to blend. Far enough to be caught.'
-                  : 'Give a clue. Don\u2019t make it obvious.'}
+                Give a clue. Don&apos;t make it obvious.
               </p>
             </>
           )}

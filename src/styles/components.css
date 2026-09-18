@@ -451,6 +451,9 @@
 .role-card__front--mrwhite {
   background: linear-gradient(160deg, #8f74ff, #5b3fd6);
 }
+.role-card__front--word {
+  background: linear-gradient(160deg, #46a9ea, #1f7fc4);
+}
 .role-card__hint {
   position: absolute;
   top: 16px;
