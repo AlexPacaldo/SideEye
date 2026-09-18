@@ -78,9 +78,7 @@ export function VoiceChat() {
               <h2 id="voice-title" className="t-title">
                 Voice chat
               </h2>
-              {live && (
-                <span className="badge">{voice.connected + 1} on</span>
-              )}
+              {live && <span className="badge">{voice.connected + 1} on</span>}
             </div>
 
             {voice.status === 'error' && (
@@ -93,6 +91,17 @@ export function VoiceChat() {
 
             {live ? (
               <div className="col" style={{ gap: 14 }}>
+                {voice.linking && (
+                  <p className="t-muted">Linking to the party…</p>
+                )}
+                {voice.issue && (
+                  <p
+                    className="t-body"
+                    style={{ color: 'var(--danger)', fontSize: '0.92rem' }}
+                  >
+                    {voice.issue}
+                  </p>
+                )}
                 <div className="voice-row">
                   <span className="t-muted">
                     {isHost
@@ -125,6 +134,12 @@ export function VoiceChat() {
                   <Phone size={18} />
                   LEAVE VOICE
                 </button>
+                <p
+                  className="t-muted text-center"
+                  style={{ fontSize: '0.72rem', margin: 0 }}
+                >
+                  channel {voice.selfId ?? room.code}
+                </p>
               </div>
             ) : (
               <>

@@ -10,6 +10,8 @@ export interface VoiceState {
   connected: number
   hosting: boolean
   selfId: string | null
+  linking: boolean
+  issue: string | null
 }
 
 const PEER_PREFIX = 'sideeye'
@@ -63,6 +65,8 @@ let state: VoiceState = {
   connected: 0,
   hosting: false,
   selfId: null,
+  linking: false,
+  issue: null,
 }
 
 /* ---------------- store ---------------- */
@@ -146,12 +150,16 @@ function onData(raw: unknown): void {
   const msg = raw as { type?: string; peers?: string[] }
   if (msg?.type !== 'roster' || !Array.isArray(msg.peers)) return
   waitingForRoster = false
+  setState({ linking: false })
   for (const id of msg.peers) {
     if (id === ownId) continue
     if (outgoing.has(id) || incoming.has(id)) continue
     const call = peer.call(id, localStream)
     outgoing.set(id, call)
-    call.on('stream', (stream) => addRemote(id, stream))
+    call.on('stream', (stream) => {
+      setState({ issue: null })
+      addRemote(id, stream)
+    })
     call.on('close', () => {
       outgoing.delete(id)
       removeRemote(id)
@@ -159,6 +167,9 @@ function onData(raw: unknown): void {
     call.on('error', () => {
       outgoing.delete(id)
       removeRemote(id)
+      setState({
+        issue: 'Audio link to a party member failed — try having everyone re-join voice chat.',
+      })
     })
   }
 }
@@ -170,6 +181,7 @@ function onPeerOpen(): void {
   setState({ status: 'live', error: null, hosting, selfId: ownId })
   if (hosting || !roomCode) return
   waitingForRoster = true
+  setState({ linking: true })
   dataConn = peer.connect(`${PEER_PREFIX}-${roomCode}`, { reliable: true })
   dataConn.on('data', onData)
   dataConn.on('open', () => {
@@ -210,7 +222,10 @@ function onIncomingCall(call: MediaConnection): void {
       /* noop */
     }
   }
-  call.on('stream', (stream) => addRemote(call.peer, stream))
+  call.on('stream', (stream) => {
+    setState({ issue: null })
+    addRemote(call.peer, stream)
+  })
   call.on('close', () => {
     incoming.delete(call.peer)
     removeRemote(call.peer)
@@ -315,6 +330,8 @@ function failVoice(message: string): void {
     connected: 0,
     hosting: false,
     selfId: null,
+    linking: false,
+    issue: null,
   })
 }
 
@@ -336,6 +353,8 @@ export function leaveVoice(): void {
     connected: 0,
     hosting: false,
     selfId: null,
+    linking: false,
+    issue: null,
   })
 }
 
@@ -348,6 +367,8 @@ export async function joinVoice(code: string, isHost: boolean): Promise<void> {
     connected: 0,
     hosting: isHost,
     selfId: null,
+    linking: false,
+    issue: null,
   })
   roomCode = code
   hosting = isHost
@@ -366,6 +387,8 @@ export async function joinVoice(code: string, isHost: boolean): Promise<void> {
       connected: 0,
       hosting: false,
       selfId: null,
+      linking: false,
+      issue: null,
     })
     return
   }
