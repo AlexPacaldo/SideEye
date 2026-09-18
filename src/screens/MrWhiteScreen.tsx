@@ -39,7 +39,7 @@ export function MrWhiteScreen() {
   return (
     <div className="mrwhite-screen">
       <div className="mrwhite-screen__timer">
-        <GameTimer deadline={room.deadline} total={room.timerSeconds} label="to guess" />
+        <GameTimer key={room.deadline ?? 'none'} deadline={room.deadline} total={room.timerSeconds} label="to guess" />
       </div>
       <MrWhiteGuess
         canGuess={canGuess}

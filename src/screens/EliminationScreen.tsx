@@ -7,6 +7,7 @@ export function EliminationScreen() {
   const { snapshot, backend, safe } = useApp()
   const room = snapshot.room
   const deadline = room?.deadline ?? null
+  const total = room?.timerSeconds ?? 4
 
   const [ready, setReady] = useState(!deadline)
   useEffect(() => {
@@ -14,10 +15,13 @@ export function EliminationScreen() {
       setReady(true)
       return
     }
-    setReady(Date.now() >= deadline)
-    const handle = window.setTimeout(() => setReady(true), Math.max(0, deadline - Date.now()))
+    const start = Date.now()
+    const check = () =>
+      setReady(Date.now() - start >= (total ?? 4) * 1000)
+    check()
+    const handle = window.setTimeout(check, (total ?? 4) * 1000)
     return () => window.clearTimeout(handle)
-  }, [deadline])
+  }, [deadline, total])
 
   if (!room) return null
   const last = room.lastEliminated
@@ -35,7 +39,13 @@ export function EliminationScreen() {
 
   const footer = (
     <div className="row center" style={{ gap: 14, marginTop: 22 }}>
-      <GameTimer deadline={deadline} total={room.timerSeconds} size={44} label="revealing" />
+      <GameTimer
+        key={deadline ?? 'none'}
+        deadline={deadline}
+        total={room.timerSeconds}
+        size={44}
+        label="revealing"
+      />
       {continueButton}
     </div>
   )

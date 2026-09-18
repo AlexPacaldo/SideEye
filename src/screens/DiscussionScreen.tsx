@@ -64,6 +64,7 @@ export function DiscussionScreen() {
           <h1 className="t-title">LOOK AROUND.</h1>
         </div>
         <GameTimer
+          key={room.deadline ?? 'none'}
           deadline={room.deadline}
           total={room.timerSeconds}
           label="to talk"

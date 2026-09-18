@@ -67,7 +67,11 @@ function OnlineClue() {
           <span className="t-eyebrow">Round {room.round}</span>
           <h1 className="t-title">DROP YOUR CLUE</h1>
         </div>
-        <GameTimer deadline={room.deadline} total={room.timerSeconds} />
+        <GameTimer
+          key={room.deadline ?? 'none'}
+          deadline={room.deadline}
+          total={room.timerSeconds}
+        />
       </header>
 
       {isMyTurn && !submitted ? (

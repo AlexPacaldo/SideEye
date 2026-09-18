@@ -93,7 +93,11 @@ function VotingOnline() {
             {room.phase === 'runoff' ? 'RUN IT BACK.' : "WHO'S ACTING SUS?"}
           </h1>
         </div>
-        <GameTimer deadline={room.deadline} total={room.timerSeconds} />
+        <GameTimer
+              key={room.deadline ?? 'none'}
+              deadline={room.deadline}
+              total={room.timerSeconds}
+            />
       </header>
 
       {room.phase === 'runoff' && (

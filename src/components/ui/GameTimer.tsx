@@ -8,18 +8,18 @@ interface GameTimerProps {
   big?: boolean
 }
 
-function useRemaining(deadline: number | null): number {
-  const [remaining, setRemaining] = useState(() =>
-    deadline ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000)) : 0,
-  )
+function useRemaining(total: number): number {
+  const [remaining, setRemaining] = useState(total)
   useEffect(() => {
-    if (!deadline) return
-    const update = () =>
-      setRemaining(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)))
-    update()
+    const start = Date.now()
+    const update = () => {
+      const elapsed = Math.max(0, Date.now() - start)
+      const left = Math.ceil((total * 1000 - elapsed) / 1000)
+      setRemaining(Math.max(0, Math.min(total, left)))
+    }
     const handle = window.setInterval(update, 250)
     return () => window.clearInterval(handle)
-  }, [deadline])
+  }, [total])
   return remaining
 }
 
@@ -30,7 +30,12 @@ export function GameTimer({
   label,
   big = false,
 }: GameTimerProps) {
-  const remaining = useRemaining(deadline)
+  // Count down from `total` for `total` seconds starting when this instance
+  // mounts. Callers should key this component on the deadline so a new
+  // deadline remounts it and restarts the countdown — this keeps the display
+  // immune to the client clock differing from the server clock, while the
+  // server still enforces the real deadline.
+  const remaining = useRemaining(total ?? 0)
   if (!deadline || !total) return null
 
   const radius = 18
