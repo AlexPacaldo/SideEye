@@ -9,6 +9,7 @@
   position: sticky;
   top: 0;
   z-index: 40;
+  width: 100vw;
   display: flex;
   align-items: center;
   gap: 10px;
