@@ -711,8 +711,8 @@ if (room.passIndex >= this.internal.passOrder.length) {
       }
     }
     if (phase === 'elimination') {
-      room.deadline = Date.now() + 4000
-      room.timerSeconds = 4
+      room.deadline = null
+      room.timerSeconds = null
     }
     if (phase === 'voteReveal') {
       room.tally = tallyVotes(this.internal!.roundVotes, room.round, this.aliveIds())

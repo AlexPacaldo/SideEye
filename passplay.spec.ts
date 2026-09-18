@@ -160,7 +160,6 @@ describe('pass & play', () => {
     expect(s.room!.phase).toBe('elimination')
     expect(s.room!.lastEliminated?.playerId).toBe(civilianId)
 
-    ;(backend as unknown as { room: { deadline: number } }).room.deadline = Date.now() - 1
     await backend.advance() // continue -> decision
     s = backend.getSnapshot()
     expect(s.room!.phase).toBe('postElimination')
