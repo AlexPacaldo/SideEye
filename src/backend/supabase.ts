@@ -9,7 +9,7 @@ import {
   type Snapshot,
 } from '../game/types'
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './env'
-import { BackendError, type Backend, type Friend, type GameRecord } from './types'
+import { BackendError, type Backend, type Friend, type GameRecord, type PlayerSearchResult } from './types'
 
 interface RoomStateRow extends Partial<RoomSnapshot> {
   me_secret?: SecretInfo | null
@@ -124,6 +124,32 @@ export class SupabaseBackend implements Backend {
         online: false,
       }
     })
+  }
+
+  async searchPlayers(query: string): Promise<PlayerSearchResult[]> {
+    const q = query.trim()
+    if (!q) return []
+    const { data, error } = await this.client
+      .from('profiles')
+      .select('id, name, avatar_url')
+      .ilike('name', `%${q}%`)
+      .limit(10)
+    if (error) return []
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      avatarUrl: row.avatar_url as string | null,
+    }))
+  }
+
+  async addFriend(friendId: string): Promise<void> {
+    const { error } = await this.client.rpc('add_friend', { p_friend_id: friendId })
+    if (error) throw new BackendError(error.message)
+  }
+
+  async removeFriend(friendId: string): Promise<void> {
+    const { error } = await this.client.rpc('remove_friend', { p_friend_id: friendId })
+    if (error) throw new BackendError(error.message)
   }
 
   async getHistory(): Promise<GameRecord[]> {

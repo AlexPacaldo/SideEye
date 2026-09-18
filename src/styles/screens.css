@@ -384,6 +384,25 @@
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
+.friend-search {
+  display: flex;
+  gap: 10px;
+  margin: 4px 0 20px;
+}
+.friend-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  font-weight: 700;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.friend-search input:focus {
+  border-color: var(--primary);
+  background: var(--surface);
+}
 .code-input {
   text-align: center;
   font-size: 1.6rem !important;

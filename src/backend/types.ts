@@ -12,6 +12,12 @@ export interface Friend {
   online: boolean
 }
 
+export interface PlayerSearchResult {
+  id: string
+  name: string
+  avatarUrl: string | null
+}
+
 export interface GameRecordPlayer {
   name: string
   role: string
@@ -41,6 +47,9 @@ export interface Backend {
 
   getFriends(): Promise<Friend[]>
   getHistory(): Promise<GameRecord[]>
+  searchPlayers(query: string): Promise<PlayerSearchResult[]>
+  addFriend(friendId: string): Promise<void>
+  removeFriend(friendId: string): Promise<void>
 
   createRoom(input: CreateRoomInput): Promise<void>
   joinRoom(code: string, name: string): Promise<void>

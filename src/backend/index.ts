@@ -13,4 +13,4 @@ export function getBackend(): Backend {
 }
 
 export { hasSupabase }
-export type { Backend, Friend, GameRecord } from './types'
+export type { Backend, Friend, GameRecord, PlayerSearchResult } from './types'

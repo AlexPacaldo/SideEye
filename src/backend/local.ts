@@ -21,7 +21,7 @@ import {
   type Snapshot,
   type Winner,
 } from '../game/types'
-import { BackendError, type Backend, type Friend, type GameRecord } from './types'
+import { BackendError, type Backend, type Friend, type GameRecord, type PlayerSearchResult } from './types'
 
 const BOT_NAMES = [
   'Mia',
@@ -209,8 +209,30 @@ export class LocalBackend implements Backend {
 
   /* ---------------- data ---------------- */
 
-  async getFriends(): Promise<Friend[]> {
+async getFriends(): Promise<Friend[]> {
     return this.friends
+  }
+
+  async searchPlayers(query: string): Promise<PlayerSearchResult[]> {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    return defaultFriends()
+      .filter((f) => f.name.toLowerCase().includes(q))
+      .map((f) => ({ id: f.id, name: f.name, avatarUrl: f.avatarUrl }))
+  }
+
+  async addFriend(friendId: string): Promise<void> {
+    if (this.friends.some((f) => f.id === friendId)) return
+    const found = defaultFriends().find((f) => f.id === friendId)
+    if (found) {
+      this.friends.push({ ...found })
+      save('sideeye.friends', this.friends)
+    }
+  }
+
+  async removeFriend(friendId: string): Promise<void> {
+    this.friends = this.friends.filter((f) => f.id !== friendId)
+    save('sideeye.friends', this.friends)
   }
 
   async getHistory(): Promise<GameRecord[]> {
