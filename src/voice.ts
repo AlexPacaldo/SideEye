@@ -73,6 +73,7 @@ let reconnectTimer: number | null = null
 let reconnectAttempts = 0
 let realHost = false
 let candidateHost = false
+let hubHost: string | null = null
 
 let state: VoiceState = {
   status: 'idle',
@@ -100,6 +101,10 @@ export function subscribeVoice(fn: () => void): () => void {
   return () => {
     listeners.delete(fn)
   }
+}
+
+export function updateVoiceHost(hostPlayerId: string | null): void {
+  hubHost = hostPlayerId
 }
 
 function setState(patch: Partial<VoiceState>): void {
@@ -311,14 +316,22 @@ function onData(raw: unknown): void {
 
 /* ---------------- peer wiring ---------------- */
 
+function hubIdFor(code: string, hostPlayerId: string): string {
+  const slug = hostPlayerId
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '')
+    .slice(0, 12)
+  return `${PEER_PREFIX}-${code}-h-${slug || 'host'}`
+}
+
 function onPeerOpen(): void {
   if (!peer) return
   reconnectAttempts = 0
   if (!hosting) candidateHost = false
   setState({ status: 'live', error: null, hosting, selfId: ownId })
-  if (hosting || !roomCode) return
+  if (hosting || !roomCode || !hubHost) return
   setState({ linking: true })
-  dataConn = peer.connect(`${PEER_PREFIX}-${roomCode}`, { reliable: true })
+  dataConn = peer.connect(hubIdFor(roomCode, hubHost), { reliable: true })
   dataConn.on('data', onData)
   dataConn.on('open', () => {
     try {
@@ -517,7 +530,14 @@ function scheduleReconnect(reason: string): void {
     const wasHost = hosting
     const escalate = !hosting && candidateHost && reconnectAttempts >= 3
     resetVoiceCore()
-    void joinVoice(code, wasHost || escalate, info ?? { playerId: 'guest', name: 'Guest' }, candidateHost, realHost)
+    void joinVoice(
+      code,
+      wasHost || escalate,
+      info ?? { playerId: 'guest', name: 'Guest' },
+      candidateHost,
+      realHost,
+      hubHost ?? undefined,
+    )
   }, delay)
 }
 
@@ -530,6 +550,7 @@ function failVoice(message: string): void {
   realHost = false
   candidateHost = false
   reconnectAttempts = 0
+  hubHost = null
   roomCode = null
   hosting = false
   myInfo = null
@@ -555,6 +576,7 @@ export function leaveVoice(): void {
   realHost = false
   candidateHost = false
   reconnectAttempts = 0
+  hubHost = null
   roomCode = null
   hosting = false
   myInfo = null
@@ -576,6 +598,7 @@ export async function joinVoice(
   me: VoiceParticipant,
   canHost = true,
   designated = isHost,
+  hostPlayerId?: string,
 ): Promise<void> {
   if (peer || state.status === 'joining') return
   if (reconnectTimer != null) {
@@ -584,6 +607,7 @@ export async function joinVoice(
   }
   realHost = designated
   candidateHost = canHost
+  hubHost = hostPlayerId ?? (isHost ? me.playerId : hubHost)
   setState({
     status: 'joining',
     error: null,
@@ -607,6 +631,7 @@ export async function joinVoice(
       roomCode = null
       hosting = false
       myInfo = null
+      hubHost = null
       setState({
         status: 'error',
         error:
@@ -622,8 +647,8 @@ export async function joinVoice(
   }
 
   const id = isHost
-    ? `${PEER_PREFIX}-${code}`
-    : `${PEER_PREFIX}-${code}-${Math.random().toString(36).slice(2, 10)}`
+    ? hubIdFor(code, me.playerId)
+    : `${PEER_PREFIX}-${code}-g-${Math.random().toString(36).slice(2, 10)}`
   ownId = id
 
   const p = new Peer(id, { config: { iceServers: STUN_SERVERS } })

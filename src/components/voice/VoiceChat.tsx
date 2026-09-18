@@ -9,6 +9,7 @@ import {
   leaveVoice,
   subscribeVoice,
   toggleVoiceMute,
+  updateVoiceHost,
   useVoiceTalking,
 } from '../../voice'
 import { Modal } from '../ui/Modal'
@@ -83,6 +84,7 @@ export function VoiceChat() {
 
   useEffect(() => {
     if (!connected || !me) return
+    updateVoiceHost(room?.hostId ?? null)
     const prev = lastHost.current
     lastHost.current = room?.hostId ?? null
     if (prev == null || prev === lastHost.current) return
@@ -98,6 +100,7 @@ export function VoiceChat() {
         { playerId: me.playerId, name: myName },
         iNowHost || fallbackHostCandidate,
         iNowHost,
+        room.hostId ?? me.playerId,
       )
     }
   }, [connected, me, room?.hostId, room?.code, myName, fallbackHostCandidate])
@@ -259,6 +262,8 @@ export function VoiceChat() {
                       isHost,
                       { playerId: me?.playerId ?? '', name: myName },
                       isHost || fallbackHostCandidate,
+                      undefined,
+                      room.hostId ?? me?.playerId ?? '',
                     )
                   }}
                 >
