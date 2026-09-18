@@ -952,7 +952,7 @@ private setPassOrder(order: string[]): void {
   private allSubmitted(): boolean {
     if (!this.room) return false
     const expected =
-      this.room.phase === 'clue'
+this.room.phase === 'clue'
         ? this.aliveIds()
         : this.room.players.map((p) => p.id)
     return expected.every((id) => this.room!.submittedIds.includes(id))

@@ -1,11 +1,30 @@
 import { EliminationReveal } from '../components/game/EliminationReveal'
+import { GameTimer } from '../components/ui/GameTimer'
 import { useApp } from '../state/context'
 
 export function EliminationScreen() {
-  const { snapshot } = useApp()
+  const { snapshot, backend, safe } = useApp()
   const room = snapshot.room
   if (!room) return null
   const last = room.lastEliminated
+
+  const footer = (
+    <div className="row center" style={{ gap: 14, marginTop: 22 }}>
+      <GameTimer
+        deadline={room.deadline}
+        total={room.timerSeconds}
+        size={44}
+        label="revealing"
+      />
+      <button
+        type="button"
+        className="btn btn--ghost"
+        onClick={() => void safe(backend.advance())}
+      >
+        CONTINUE <span aria-hidden="true">→</span>
+      </button>
+    </div>
+  )
 
   if (!last) {
     return (
@@ -17,6 +36,7 @@ export function EliminationScreen() {
         <p className="t-body">
           The room couldn&apos;t decide. One more round of clues.
         </p>
+        {footer}
       </div>
     )
   }
@@ -32,6 +52,7 @@ export function EliminationScreen() {
           But wait…
         </p>
       )}
+      {footer}
     </div>
   )
 }
