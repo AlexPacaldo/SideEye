@@ -105,7 +105,7 @@ const LAYOUTS: Record<
 export function Decor({ variant = 'soft' }: DecorProps) {
   const items = LAYOUTS[variant]
   return (
-    <div aria-hidden="true">
+    <div className="decor" aria-hidden="true">
       {items.map((item, i) => (
         <span
           key={i}

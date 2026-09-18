@@ -23,6 +23,7 @@ export class SupabaseBackend implements Backend {
   private channel: RealtimeChannel | null = null
   private poll: ReturnType<typeof setInterval> | null = null
   private refreshing = false
+  private generation = 0
   private roomCode: string | null = null
   private snapshot: Snapshot = {
     user: null,
@@ -100,8 +101,9 @@ export class SupabaseBackend implements Backend {
 
   async signOut(): Promise<void> {
     await this.client.auth.signOut()
-    this.snapshot.user = null
+    this.generation++
     this.leaveChannel()
+    this.snapshot.user = null
     this.snapshot.room = null
     this.snapshot.me = null
     this.emit()
@@ -201,6 +203,7 @@ export class SupabaseBackend implements Backend {
 
   async leaveRoom(): Promise<void> {
     await this.client.rpc('leave_room')
+    this.generation++
     this.leaveChannel()
     this.roomCode = null
     this.snapshot.room = null
@@ -315,17 +318,20 @@ export class SupabaseBackend implements Backend {
 
   private async refresh(): Promise<void> {
     if (!this.roomCode || this.refreshing) return
+    const gen = this.generation
+    const code = this.roomCode
     this.refreshing = true
     try {
       const { data, error } = await this.client.rpc('get_room_state', {
-        p_code: this.roomCode,
+        p_code: code,
       })
-      if (error || !data) return
+      if (error || !data || this.generation !== gen || this.roomCode !== code) return
       const state = data as RoomStateRow
-      this.snapshot.room = normalizeRoom(state, this.roomCode)
+      this.snapshot.room = normalizeRoom(state, code)
       const { data: secret } = await this.client.rpc('get_my_secret', {
-        p_code: this.roomCode,
+        p_code: code,
       })
+      if (this.generation !== gen || this.roomCode !== code) return
       const info = (secret as (SecretInfo & { playerId?: string }) | null) ?? null
       this.snapshot.me = {
         playerId: info?.playerId ?? this.snapshot.user?.id ?? '',
