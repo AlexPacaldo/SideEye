@@ -331,8 +331,9 @@ async getFriends(): Promise<Friend[]> {
       lastEliminated: null,
       winner: null,
       reveal: null,
-      passIndex: 0,
+passIndex: 0,
       passRevealed: false,
+      passOrder: [],
     }
     this.commit()
     this.scheduleBots()
@@ -400,8 +401,9 @@ async getFriends(): Promise<Friend[]> {
       lastEliminated: null,
       winner: null,
       reveal: null,
-      passIndex: 0,
+passIndex: 0,
       passRevealed: false,
+      passOrder: [],
     }
     this.commit()
   }
@@ -603,9 +605,9 @@ async getFriends(): Promise<Friend[]> {
       }
       room.passRevealed = false
       room.passIndex += 1
-      if (room.passIndex >= this.internal.passOrder.length) {
+if (room.passIndex >= this.internal.passOrder.length) {
         room.submittedIds = [...this.internal.passOrder]
-        this.enterPhase('clue', room.settings.clueSeconds)
+        this.enterPhase('discussion', null)
       } else {
         this.commit()
       }
@@ -699,6 +701,9 @@ async getFriends(): Promise<Friend[]> {
       room.tally = tallyVotes(this.internal!.roundVotes, room.round, this.aliveIds())
       room.deadline = null
       room.timerSeconds = null
+    }
+    if (phase === 'discussion' && room.mode === 'passplay') {
+      this.setPassOrder(this.aliveIds())
     }
 
     this.startTicker()
@@ -803,12 +808,16 @@ async getFriends(): Promise<Friend[]> {
       this.enterPhase('mrWhiteGuess', 45)
       return
     }
-    room.round += 1
+room.round += 1
     room.votes = []
     room.tally = null
     room.runoffIds = null
     this.internal.roundVotes = []
-    this.enterPhase('clue', room.settings.clueSeconds)
+    if (room.mode === 'passplay') {
+      this.enterPhase('discussion', null)
+    } else {
+      this.enterPhase('clue', room.settings.clueSeconds)
+    }
   }
 
   private finishGame(): void {
@@ -873,11 +882,12 @@ async getFriends(): Promise<Friend[]> {
     return this.user?.id ?? null
   }
 
-  private setPassOrder(order: string[]): void {
+private setPassOrder(order: string[]): void {
     if (!this.internal || !this.room) return
     this.internal.passOrder = [...order]
     this.room.passIndex = 0
     this.room.passRevealed = false
+    this.room.passOrder = [...order]
   }
 
   private advancePass(): void {

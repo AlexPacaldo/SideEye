@@ -311,6 +311,10 @@ begin
     update public.rooms
       set tally = private.tally_json(p_code, r.round), deadline = null, timer_seconds = null
     where code = p_code;
+  elsif p_phase = 'discussion' and r.mode = 'passplay' then
+    update public.rooms
+      set pass_order = private.alive_ids(p_code)
+    where code = p_code;
   end if;
 end $$;
 
@@ -677,7 +681,11 @@ begin
 
   update public.rooms set round = r.round + 1, tally = null, runoff_ids = null where code = p_code;
   delete from public.votes where room_code = p_code;
-  perform private.enter_phase(p_code, 'clue', (r.settings ->> 'clueSeconds')::int);
+  if r.mode = 'passplay' then
+    perform private.enter_phase(p_code, 'discussion', null);
+  else
+    perform private.enter_phase(p_code, 'clue', (r.settings ->> 'clueSeconds')::int);
+  end if;
 end $$;
 
 -- =========================================================
@@ -1464,7 +1472,7 @@ begin
       update public.rooms
         set pass_revealed = false, submitted_ids = r.pass_order
       where code = r.code;
-      perform private.enter_phase(r.code, 'clue', (r.settings ->> 'clueSeconds')::int);
+      perform private.enter_phase(r.code, 'discussion', null);
     else
       update public.rooms
         set pass_revealed = false, pass_index = r.pass_index + 1, updated_at = now()
@@ -1624,7 +1632,8 @@ begin
     'winner', r.winner,
     'reveal', r.reveal,
     'passIndex', r.pass_index,
-    'passRevealed', r.pass_revealed
+    'passRevealed', r.pass_revealed,
+    'passOrder', to_jsonb(r.pass_order)
   );
 end $$;
 

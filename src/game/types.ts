@@ -89,6 +89,7 @@ export interface RoomSnapshot {
   reveal: CastReveal[] | null
   passIndex: number
   passRevealed: boolean
+  passOrder: string[]
 }
 
 export interface SessionUser {

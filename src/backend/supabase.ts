@@ -385,5 +385,6 @@ function normalizeRoom(state: RoomStateRow, code: string): RoomSnapshot {
     reveal: state.reveal ?? null,
     passIndex: state.passIndex ?? 0,
     passRevealed: state.passRevealed ?? false,
+    passOrder: state.passOrder ?? [],
   }
 }
