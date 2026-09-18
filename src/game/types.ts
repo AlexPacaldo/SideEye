@@ -12,6 +12,7 @@ export type Phase =
   | 'voteReveal'
   | 'runoff'
   | 'elimination'
+  | 'postElimination'
   | 'mrWhiteGuess'
   | 'gameOver'
 

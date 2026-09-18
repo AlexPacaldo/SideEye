@@ -687,7 +687,7 @@ begin
   update public.rooms set round = r.round + 1, tally = null, runoff_ids = null where code = p_code;
   delete from public.votes where room_code = p_code;
   if r.mode = 'passplay' then
-    perform private.enter_phase(p_code, 'discussion', null);
+    perform private.enter_phase(p_code, 'postElimination', null);
   else
     perform private.enter_phase(p_code, 'clue', (r.settings ->> 'clueSeconds')::int);
   end if;
@@ -1450,6 +1450,25 @@ begin
     perform public.pass_turn();
   else
     update public.rooms set updated_at = now() where code = r.code;
+  end if;
+end $$;
+
+create or replace function public.next_round(p_skip_clues boolean)
+returns void
+language plpgsql
+security definer
+set search_path = private, public
+as $$
+declare
+  v_uid uuid := private.require_uid();
+  r public.rooms%rowtype;
+begin
+  select * into r from public.rooms where code = private.member_code(v_uid) for update;
+  if r.code is null or r.mode <> 'passplay' or r.phase <> 'postElimination' then return; end if;
+  if p_skip_clues then
+    perform private.start_voting(r.code, false);
+  else
+    perform private.enter_phase(r.code, 'discussion', null);
   end if;
 end $$;
 

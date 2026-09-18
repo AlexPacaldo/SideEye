@@ -579,14 +579,27 @@ if (!this.room.submittedIds.includes(playerId)) {
       case 'voteReveal':
         this.resolveVotes()
         break
-      case 'elimination':
+case 'elimination':
         this.continueAfterElimination()
+        break
+      case 'postElimination':
+        this.enterPhase('discussion', null)
         break
       case 'roleReveal':
         if (this.room.mode === 'passplay') this.runPassTurn()
         break
       default:
         this.commit()
+    }
+  }
+
+  async nextRound(skipClues: boolean): Promise<void> {
+    if (!this.room) return
+    if (this.room.phase !== 'postElimination') return
+    if (skipClues) {
+      this.startVoting(false)
+    } else {
+      this.enterPhase('discussion', null)
     }
   }
 
@@ -814,7 +827,7 @@ room.round += 1
     room.runoffIds = null
     this.internal.roundVotes = []
     if (room.mode === 'passplay') {
-      this.enterPhase('discussion', null)
+      this.enterPhase('postElimination', null)
     } else {
       this.enterPhase('clue', room.settings.clueSeconds)
     }

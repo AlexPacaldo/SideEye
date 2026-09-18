@@ -15,6 +15,7 @@ import { ClueRevealScreen } from '../screens/ClueRevealScreen'
 import { ClueScreen } from '../screens/ClueScreen'
 import { DiscussionScreen } from '../screens/DiscussionScreen'
 import { EliminationScreen } from '../screens/EliminationScreen'
+import { ContinueScreen } from '../screens/ContinueScreen'
 import { FriendsScreen } from '../screens/FriendsScreen'
 import { HistoryScreen } from '../screens/HistoryScreen'
 import { HomeScreen } from '../screens/HomeScreen'
@@ -39,6 +40,8 @@ const PHASE_VARIANT: Partial<Record<Phase, DecorVariant>> = {
   lobby: 'lobby',
   roleReveal: 'game',
   clue: 'game',
+  elimination: 'soft',
+  postElimination: 'soft',
   discussion: 'soft',
   voting: 'game',
   gameOver: 'soft',
@@ -143,6 +146,8 @@ function GameRouter({ phase }: { phase: Phase }) {
       return <VoteRevealScreen />
     case 'elimination':
       return <EliminationScreen />
+    case 'postElimination':
+      return <ContinueScreen />
     case 'mrWhiteGuess':
       return <MrWhiteScreen />
     case 'gameOver':

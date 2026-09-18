@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { LocalBackend } from './src/backend/local'
+import type { Role } from './src/game/types'
 
 class LS {
   private m = new Map<string, string>()
@@ -40,13 +41,13 @@ function advanceTickerFinishes(ms = 5000): void {
   void ms
 }
 
-async function playPassAndPlay() {
+async function playPassAndPlay(count = 4) {
   const backend = new LocalBackend()
   await backend.continueAsGuest('Host')
   await backend.createRoom({
     mode: 'passplay',
     name: 'Host',
-    passNames: ['A', 'B', 'C', 'D'],
+    passNames: ['A', 'B', 'C', 'D', 'E', 'F'].slice(0, count),
     settings: {
       clueSeconds: 30,
       voteSeconds: 30,
@@ -115,10 +116,6 @@ describe('pass & play', () => {
     expect(s.room!.phase).toBe('voting')
 
     // no per-player voting: the group picks one name, one tap locks it in
-    await backend.advance()
-    s = backend.getSnapshot()
-    expect(s.room!.phase).toBe('voting')
-
     const voter = s.me!.playerId
     const target = order.find((id) => id !== voter)!
     await backend.castVote(target)
@@ -127,5 +124,54 @@ describe('pass & play', () => {
     expect(s.room!.phase).toBe('voteReveal')
     const mine = s.room!.tally?.find((t) => t.playerId === target)
     expect(mine?.count).toBe(1)
+  })
+
+  it('offers another clue round or a straight vote after an elimination', async () => {
+    const backend = await playPassAndPlay(5)
+    let s = backend.getSnapshot()
+    for (let i = 0; i < 5; i += 1) {
+      await backend.runPassTurn()
+      await backend.runPassTurn()
+      s = backend.getSnapshot()
+    }
+    expect(s.room!.phase).toBe('discussion')
+
+    const roles = (backend as unknown as {
+      internal: { roles: Record<string, Role> }
+    }).internal.roles
+    expect(s.me).not.toBeNull()
+    const voter = s.me!.playerId
+    const civilianId = Object.keys(roles).find(
+      (id) => roles[id] === 'civilian' && id !== voter,
+    )
+    expect(civilianId).toBeTruthy()
+
+    await backend.advance() // discussion -> voting
+    s = backend.getSnapshot()
+    expect(s.room!.phase).toBe('voting')
+
+    await backend.castVote(civilianId!)
+    s = backend.getSnapshot()
+    expect(s.room!.phase).toBe('voteReveal')
+    expect(s.room!.tally?.find((t) => t.playerId === civilianId)?.count).toBe(1)
+
+    await backend.advance() // resolve -> elimination
+    s = backend.getSnapshot()
+    expect(s.room!.phase).toBe('elimination')
+    expect(s.room!.lastEliminated?.playerId).toBe(civilianId)
+
+    await backend.advance() // continue -> decision
+    s = backend.getSnapshot()
+    expect(s.room!.phase).toBe('postElimination')
+    expect(s.room!.round).toBe(2)
+
+    // pick: another round of clues
+    await backend.nextRound(false)
+    s = backend.getSnapshot()
+    expect(s.room!.phase).toBe('discussion')
+    expect(s.room!.round).toBe(2)
+    const alive = s.room!.passOrder
+    expect(alive).toHaveLength(4)
+    expect(alive).not.toContain(civilianId)
   })
 })

@@ -246,6 +246,10 @@ export class SupabaseBackend implements Backend {
     await this.run('advance_phase')
   }
 
+  async nextRound(skipClues: boolean): Promise<void> {
+    await this.run('next_round', { p_skip_clues: skipClues })
+  }
+
   async runPassTurn(): Promise<void> {
     await this.run('pass_turn')
   }

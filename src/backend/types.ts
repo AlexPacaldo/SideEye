@@ -65,6 +65,7 @@ export interface Backend {
   submitMrWhiteGuess(word: string): Promise<void>
 
   advance(): Promise<void>
+  nextRound(skipClues: boolean): Promise<void>
   runPassTurn(): Promise<void>
 
   replay(): Promise<void>
