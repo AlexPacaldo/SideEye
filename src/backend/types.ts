@@ -24,6 +24,14 @@ export interface GameRecordPlayer {
   word: string | null
 }
 
+export interface ChatMessage {
+  id: string
+  playerId: string
+  name: string
+  text: string
+  createdAt: number
+}
+
 export interface GameRecord {
   id: string
   code: string
@@ -50,6 +58,10 @@ export interface Backend {
   searchPlayers(query: string): Promise<PlayerSearchResult[]>
   addFriend(friendId: string): Promise<void>
   removeFriend(friendId: string): Promise<void>
+
+  listMessages(): Promise<ChatMessage[]>
+  sendMessage(text: string): Promise<void>
+  subscribeChat(listener: (m: ChatMessage) => void): () => void
 
   createRoom(input: CreateRoomInput): Promise<void>
   joinRoom(code: string, name: string): Promise<void>

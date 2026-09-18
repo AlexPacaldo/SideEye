@@ -9,7 +9,7 @@ import {
   type Snapshot,
 } from '../game/types'
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './env'
-import { BackendError, type Backend, type Friend, type GameRecord, type PlayerSearchResult } from './types'
+import { BackendError, type Backend, type ChatMessage, type Friend, type GameRecord, type PlayerSearchResult } from './types'
 
 interface RoomStateRow extends Partial<RoomSnapshot> {
   me_secret?: SecretInfo | null
@@ -21,6 +21,8 @@ export class SupabaseBackend implements Backend {
   private client: SupabaseClient
   private listeners = new Set<(s: Snapshot) => void>()
   private channel: RealtimeChannel | null = null
+  private chatChannel: RealtimeChannel | null = null
+  private chatListeners = new Set<(m: ChatMessage) => void>()
   private poll: ReturnType<typeof setInterval> | null = null
   private refreshing = false
   private generation = 0
@@ -152,6 +154,31 @@ export class SupabaseBackend implements Backend {
   async removeFriend(friendId: string): Promise<void> {
     const { error } = await this.client.rpc('remove_friend', { p_friend_id: friendId })
     if (error) throw new BackendError(error.message)
+  }
+
+  async listMessages(): Promise<ChatMessage[]> {
+    if (!this.roomCode) return []
+    const { data, error } = await this.client
+      .from('messages')
+      .select('*')
+      .eq('room_code', this.roomCode)
+      .order('id', { ascending: false })
+      .limit(50)
+    if (error) return []
+    return (data ?? [])
+      .map((row) => mapChatMessage(row as Record<string, unknown>))
+      .filter((m): m is ChatMessage => m !== null)
+      .reverse()
+  }
+
+  async sendMessage(text: string): Promise<void> {
+    const { error } = await this.client.rpc('send_message', { p_text: text })
+    if (error) throw new BackendError(error.message)
+  }
+
+  subscribeChat(listener: (m: ChatMessage) => void): () => void {
+    this.chatListeners.add(listener)
+    return () => this.chatListeners.delete(listener)
   }
 
   async getHistory(): Promise<GameRecord[]> {
@@ -305,7 +332,38 @@ export class SupabaseBackend implements Backend {
         this.emit()
       })
     this.channel = channel
+    this.subscribeChatRealtime()
     this.startPolling()
+  }
+
+  private subscribeChatRealtime(): void {
+    this.removeChatChannel()
+    if (!this.roomCode) return
+    const code = this.roomCode
+    this.chatChannel = this.client
+      .channel(`chat-${code}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `room_code=eq.${code}`,
+        },
+        (payload) => {
+          const msg = mapChatMessage((payload.new ?? {}) as Record<string, unknown>)
+          if (!msg) return
+          this.chatListeners.forEach((l) => l(msg))
+        },
+      )
+      .subscribe()
+  }
+
+  private removeChatChannel(): void {
+    if (this.chatChannel) {
+      void this.client.removeChannel(this.chatChannel)
+      this.chatChannel = null
+    }
   }
 
   private startPolling(): void {
@@ -322,6 +380,8 @@ export class SupabaseBackend implements Backend {
       void this.client.removeChannel(this.channel)
       this.channel = null
     }
+    this.removeChatChannel()
+    this.chatListeners.clear()
   }
 
   private async refresh(): Promise<void> {
@@ -366,6 +426,20 @@ function mapUser(user: {
     avatarUrl: (meta.avatar_url as string) ?? null,
     isGuest: Boolean(meta.guest) || !user.email,
     email: user.email ?? null,
+  }
+}
+
+function mapChatMessage(row: Record<string, unknown>): ChatMessage | null {
+  if (!row || typeof row.id === 'undefined' || typeof row.player_id !== 'string') {
+    return null
+  }
+  return {
+    id: String(row.id),
+    playerId: row.player_id,
+    name: (row.name as string) ?? 'Player',
+    text: (row.text as string) ?? '',
+    createdAt:
+      typeof row.created_at === 'string' ? Date.parse(row.created_at) : Date.now(),
   }
 }
 

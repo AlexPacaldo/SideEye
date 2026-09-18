@@ -30,6 +30,7 @@ import { Decor } from './ui/Decor'
 import { Logo } from './ui/Logo'
 import { Loading } from './ui/Loading'
 import { Toasts } from './ui/Toasts'
+import { PartyChat } from './chat/PartyChat'
 import { VoiceChat } from './voice/VoiceChat'
 import type { Phase } from '../game/types'
 
@@ -111,6 +112,7 @@ export function AppShell() {
             {room.mode === 'passplay' ? 'PASS & PLAY' : `ROUND ${Math.max(1, room.round)}`}
           </span>
           <span className="grow" />
+          <PartyChat />
           <VoiceChat />
           <button
             type="button"

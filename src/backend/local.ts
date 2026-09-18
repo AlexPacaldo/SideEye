@@ -21,7 +21,7 @@ import {
   type Snapshot,
   type Winner,
 } from '../game/types'
-import { BackendError, type Backend, type Friend, type GameRecord, type PlayerSearchResult } from './types'
+import { BackendError, type Backend, type ChatMessage, type Friend, type GameRecord, type PlayerSearchResult } from './types'
 
 const CLUE_TURN_SECONDS = 60
 
@@ -96,8 +96,10 @@ export class LocalBackend implements Backend {
   private room: RoomSnapshot | null = null
   private internal: Internal | null = null
   private seenSecrets = new Map<string, SecretInfo>()
-  private history: GameRecord[] = []
+private history: GameRecord[] = []
   private friends: Friend[] = []
+  private chat: ChatMessage[] = []
+  private chatListeners = new Set<(m: ChatMessage) => void>()
   private botTimers: number[] = []
   private ticker: number | null = null
   private snapshot: Snapshot = {
@@ -237,14 +239,47 @@ async getFriends(): Promise<Friend[]> {
     save('sideeye.friends', this.friends)
   }
 
-  async getHistory(): Promise<GameRecord[]> {
+async getHistory(): Promise<GameRecord[]> {
     return [...this.history].sort((a, b) => b.playedAt - a.playedAt)
+  }
+
+  /* ---------------- chat ---------------- */
+
+  async listMessages(): Promise<ChatMessage[]> {
+    return this.chat.slice(-50)
+  }
+
+  async sendMessage(text: string): Promise<void> {
+    if (!this.room) return
+    const clean = text.trim().slice(0, 300)
+    if (!clean) return
+    const pid = this.snapshot.me?.playerId ?? this.user?.id ?? 'me'
+    const name =
+      this.room.players.find((p) => p.id === pid)?.name ??
+      this.user?.name ??
+      'Player'
+    const msg: ChatMessage = {
+      id: uid(),
+      playerId: pid,
+      name,
+      text: clean,
+      createdAt: Date.now(),
+    }
+    this.chat = [...this.chat, msg].slice(-100)
+    this.chatListeners.forEach((l) => l(msg))
+  }
+
+  subscribeChat(listener: (m: ChatMessage) => void): () => void {
+    this.chatListeners.add(listener)
+    return () => this.chatListeners.delete(listener)
   }
 
   /* ---------------- room ---------------- */
 
-  async createRoom(input: CreateRoomInput): Promise<void> {
+async createRoom(input: CreateRoomInput): Promise<void> {
     if (!this.user) await this.continueAsGuest('You')
+    this.chat = []
+    this.chatListeners.clear()
     const settings = { ...DEFAULT_SETTINGS, ...input.settings }
     const code = generateRoomCode()
     const players: PublicPlayer[] = []
@@ -341,8 +376,10 @@ passIndex: 0,
     this.scheduleBots()
   }
 
-  async joinRoom(code: string, name: string): Promise<void> {
+async joinRoom(code: string, name: string): Promise<void> {
     if (!this.user) await this.continueAsGuest(name)
+    this.chat = []
+    this.chatListeners.clear()
     const trimmed = name.trim()
     if (this.room && this.room.code === code.toUpperCase()) {
       this.room.players = this.room.players.map((p) =>
@@ -415,8 +452,10 @@ passIndex: 0,
     this.recompute()
   }
 
-  private leaveRoomInternal(): void {
+private leaveRoomInternal(): void {
     this.clearTimers()
+    this.chat = []
+    this.chatListeners.clear()
     this.room = null
     this.internal = null
     this.seenSecrets.clear()
