@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Avatar } from '../ui/Avatar'
 import type { PublicPlayer, TallyEntry } from '../../game/types'
 
@@ -23,10 +23,15 @@ export function VoteReveal({
   const reduce = useReducedMotion()
   const total = useMemo(() => tally.reduce((s, t) => s + t.count, 0), [tally])
   const [shown, setShown] = useState(reduce ? total : 0)
+  const onDoneRef = useRef(onDone)
+
+  useEffect(() => {
+    onDoneRef.current = onDone
+  }, [onDone])
 
   useEffect(() => {
     if (shown >= total) {
-      const handle = window.setTimeout(onDone, 1500)
+      const handle = window.setTimeout(() => onDoneRef.current(), 1500)
       return () => window.clearTimeout(handle)
     }
     if (reduce) {
@@ -35,7 +40,7 @@ export function VoteReveal({
     }
     const handle = window.setTimeout(() => setShown((s) => s + 1), 260)
     return () => window.clearTimeout(handle)
-  }, [shown, total, onDone, reduce])
+  }, [shown, total, reduce])
 
   const nameOf = (id: string) =>
     players.find((p) => p.id === id)?.name ?? 'Someone'

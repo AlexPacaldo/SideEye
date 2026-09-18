@@ -1,10 +1,13 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { VoteReveal } from '../components/game/VoteReveal'
 import { useApp } from '../state/context'
 
 export function VoteRevealScreen() {
   const { snapshot, backend, safe } = useApp()
   const room = snapshot.room
+  const handleDone = useCallback(() => {
+    void safe(backend.advance())
+  }, [backend, safe])
 
   const { eliminatedId, tie } = useMemo(() => {
     const tally = room?.tally ?? []
@@ -31,7 +34,7 @@ export function VoteRevealScreen() {
         runoff={room.phase === 'voteReveal' && room.runoffIds != null}
         eliminatedId={eliminatedId}
         tie={tie}
-        onDone={() => void safe(backend.advance())}
+        onDone={handleDone}
       />
     </div>
   )
