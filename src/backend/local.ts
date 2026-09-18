@@ -604,9 +604,23 @@ if (!this.room.submittedIds.includes(playerId)) {
     if (this.room.phase !== 'postElimination') return
     if (skipClues) {
       this.startVoting(false)
-    } else {
+    } else if (this.room.mode === 'passplay') {
       this.enterPhase('discussion', null)
+    } else {
+      this.enterPhase('clue', this.room.settings.clueSeconds)
     }
+  }
+
+  async skipTurn(): Promise<void> {
+    if (!this.room || !this.internal) return
+    if (this.room.phase !== 'clue') return
+    if (!this.aliveIds().includes(this.user?.id ?? '')) return
+    const turn = this.internal.passOrder[this.room.passIndex]
+    if (!turn) return
+    if (
+      this.room.clues.some((c) => c.playerId === turn && c.round === this.room!.round)
+    ) return
+    this.submitClueFor(turn, '…')
   }
 
   async runPassTurn(): Promise<void> {
@@ -836,11 +850,7 @@ room.round += 1
     room.tally = null
     room.runoffIds = null
     this.internal.roundVotes = []
-    if (room.mode === 'passplay') {
-      this.enterPhase('postElimination', null)
-    } else {
-      this.enterPhase('clue', room.settings.clueSeconds)
-    }
+    this.enterPhase('postElimination', null)
   }
 
   private finishGame(): void {

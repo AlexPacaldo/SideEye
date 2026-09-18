@@ -79,6 +79,13 @@ function OnlineClue() {
           <ClueInput
             onSubmit={(text) => void safe(backend.submitClue(text))}
           />
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm clue-screen__skip"
+            onClick={() => void safe(backend.skipTurn())}
+          >
+            Can&apos;t think of one? Skip me —
+          </button>
         </>
       ) : (
         <div className="clue-screen__waiting">
@@ -89,10 +96,19 @@ function OnlineClue() {
             {current?.name ?? 'Someone'}
             {submitted ? ' is up next' : ' is giving their clue…'}
           </p>
-          {submitted && (
+          {submitted ? (
             <p className="t-muted text-center" style={{ fontSize: '0.9rem' }}>
               The phone is passing — every clue is revealed as it lands.
             </p>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm clue-screen__skip"
+              onClick={() => void safe(backend.skipTurn())}
+            >
+              {current?.name ?? 'They'}
+              {` is blanking — skip and move on`}
+            </button>
           )}
         </div>
       )}

@@ -66,6 +66,7 @@ export interface Backend {
 
   advance(): Promise<void>
   nextRound(skipClues: boolean): Promise<void>
+  skipTurn(): Promise<void>
   runPassTurn(): Promise<void>
 
   replay(): Promise<void>

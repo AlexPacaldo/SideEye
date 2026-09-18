@@ -771,6 +771,13 @@
   font-weight: 700;
   color: var(--accent);
 }
+.clue-screen__skip {
+  align-self: center;
+  opacity: 0.75;
+}
+.clue-screen__skip:hover {
+  opacity: 1;
+}
 
 /* clue / vote status */
 .clue-status {

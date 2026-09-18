@@ -30,7 +30,7 @@ export function ContinueScreen() {
             {out.name.toUpperCase()} IS OUT. <span aria-hidden="true">👋</span>
           </>
         ) : (
-          'SOMEONE IS OUT. <span aria-hidden="true">👋</span>'
+          <>THE ROUND IS OVER.</>
         )}
       </motion.p>
       <p className="t-body">

@@ -351,7 +351,7 @@ begin
       exit;
     end loop;
     if idx > v_len then idx := v_len; end if;
-    update public.rooms set pass_index = idx - 1, pass_revealed = false where code = p_code;
+    update public.rooms set pass_index = idx - 1, pass_revealed = false, phase_started_at = now() where code = p_code;
   else
     idx := r.pass_index + 1;
     while idx < v_len loop
@@ -702,11 +702,7 @@ begin
 
   update public.rooms set round = r.round + 1, tally = null, runoff_ids = null where code = p_code;
   delete from public.votes where room_code = p_code;
-  if r.mode = 'passplay' then
-    perform private.enter_phase(p_code, 'postElimination', null);
-  else
-    perform private.enter_phase(p_code, 'clue', (r.settings ->> 'clueSeconds')::int);
-  end if;
+  perform private.enter_phase(p_code, 'postElimination', null);
 end $$;
 
 -- =========================================================
@@ -930,6 +926,15 @@ begin
                where room_code = p_code and is_bot loop
         perform private.bot_clue(p_code, b.player_id);
       end loop;
+      if r.mode = 'online'
+         and now() >= r.phase_started_at + interval '45 seconds'
+         and r.pass_order[r.pass_index + 1] is not null
+         and not exists (
+           select 1 from public.clues
+           where room_code = p_code and player_id = r.pass_order[r.pass_index + 1] and round = r.round
+         ) then
+        perform private.submit_clue(p_code, r.pass_order[r.pass_index + 1], '…');
+      end if;
 
     elsif r.phase in ('voting', 'runoff') then
       for b in select player_id from public.room_players
@@ -1488,12 +1493,37 @@ declare
   r public.rooms%rowtype;
 begin
   select * into r from public.rooms where code = private.member_code(v_uid) for update;
-  if r.code is null or r.mode <> 'passplay' or r.phase <> 'postElimination' then return; end if;
+  if r.code is null or r.phase <> 'postElimination' then return; end if;
   if p_skip_clues then
     perform private.start_voting(r.code, false);
-  else
+  elsif r.mode = 'passplay' then
     perform private.enter_phase(r.code, 'discussion', null);
+  else
+    perform private.enter_phase(r.code, 'clue', (r.settings ->> 'clueSeconds')::int);
   end if;
+end $$;
+
+create or replace function public.skip_turn()
+returns void
+language plpgsql
+security definer
+set search_path = private, public
+as $$
+declare
+  v_uid uuid := private.require_uid();
+  r public.rooms%rowtype;
+  v_turn text;
+begin
+  select * into r from public.rooms where code = private.member_code(v_uid) for update;
+  if r.code is null or r.phase <> 'clue' then return; end if;
+  if not (v_uid::text = any (private.alive_ids(r.code))) then return; end if;
+  v_turn := r.pass_order[r.pass_index + 1];
+  if v_turn is null then return; end if;
+  if exists (
+    select 1 from public.clues
+    where room_code = r.code and player_id = v_turn and round = r.round
+  ) then return; end if;
+  perform private.submit_clue(r.code, v_turn, '…');
 end $$;
 
 create or replace function public.pass_turn()
