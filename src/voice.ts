@@ -18,6 +18,26 @@ const STUN_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
+  {
+    urls: 'turn:global.relay.metered.ca:80',
+    username: 'peerjs',
+    credential: 'peerjs',
+  },
+  {
+    urls: 'turn:global.relay.metered.ca:443',
+    username: 'peerjs',
+    credential: 'peerjs',
+  },
+  {
+    urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+    username: 'peerjs',
+    credential: 'peerjs',
+  },
+  {
+    urls: 'turn:global.relay.metered.ca:443?transport=tcp',
+    username: 'peerjs',
+    credential: 'peerjs',
+  },
 ]
 
 let peer: Peer | null = null
@@ -69,8 +89,26 @@ function setState(patch: Partial<VoiceState>): void {
 
 /* ---------------- remote audio ---------------- */
 
+function resumeAudio(): void {
+  if (!audioCtx || audioCtx.state === 'closed') return
+  const tryResume = (): boolean => {
+    if (!audioCtx || audioCtx.state !== 'suspended') return true
+    void audioCtx.resume().catch(() => {})
+    return false
+  }
+  if (tryResume()) return
+  const unlock = () => {
+    if (!tryResume()) return
+    window.removeEventListener('pointerdown', unlock)
+    window.removeEventListener('keydown', unlock)
+  }
+  window.addEventListener('pointerdown', unlock)
+  window.addEventListener('keydown', unlock)
+}
+
 function attachAudio(stream: MediaStream): void {
   if (!audioCtx || audioCtx.state === 'closed') return
+  resumeAudio()
   try {
     const src = audioCtx.createMediaStreamSource(stream)
     src.connect(audioCtx.destination)
@@ -133,8 +171,9 @@ function onPeerOpen(): void {
   if (hosting || !roomCode) return
   waitingForRoster = true
   dataConn = peer.connect(`${PEER_PREFIX}-${roomCode}`, { reliable: true })
+  dataConn.on('data', onData)
   dataConn.on('open', () => {
-    dataConn!.on('data', onData)
+    /* roster arrives over 'data' — listener attached up front */
   })
   dataConn.on('error', () => {
     if (state.status === 'error') return
@@ -333,7 +372,7 @@ export async function joinVoice(code: string, isHost: boolean): Promise<void> {
 
   try {
     if (!audioCtx) audioCtx = new AudioContext()
-    if (audioCtx.state === 'suspended') void audioCtx.resume()
+    resumeAudio()
   } catch {
     /* audio output is optional */
   }
