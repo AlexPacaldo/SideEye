@@ -114,13 +114,9 @@ describe('pass & play', () => {
     s = backend.getSnapshot()
     expect(s.room!.phase).toBe('voting')
 
+    // no pass gate during voting: anyone taps a name directly
     for (let i = 0; i < 4; i += 1) {
       const voter = s.me!.playerId
-      expect(s.room!.passRevealed).toBe(false)
-      await backend.runPassTurn()
-      s = backend.getSnapshot()
-      expect(s.room!.passRevealed).toBe(true)
-      expect(s.me!.playerId).toBe(voter)
       const target = order[(i + 1) % order.length]
       expect(target).not.toBe(voter)
       await backend.castVote(target)

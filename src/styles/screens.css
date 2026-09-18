@@ -691,6 +691,18 @@
   gap: 14px;
   flex-wrap: wrap;
 }
+.vote-count {
+  align-self: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--primary);
+  font-weight: 900;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
 .clue-screen,
 .reveal-screen,
 .discussion-screen,
