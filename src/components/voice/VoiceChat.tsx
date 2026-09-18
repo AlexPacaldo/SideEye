@@ -72,21 +72,35 @@ export function VoiceChat() {
       ? (room.players.find((p) => p.id === me.playerId)?.name ?? 'You')
       : 'You'
 
+  const fallbackHostCandidate = (() => {
+    if (!room || !me) return false
+    if (isHost) return true
+    const humans = room.players.filter((p) => !p.isBot)
+    if (humans.length === 0) return false
+    const minId = humans.reduce((a, b) => (a.id < b.id ? a : b)).id
+    return minId === me.playerId
+  })()
+
   useEffect(() => {
     if (!connected || !me) return
-    const changed =
-      lastHost.current != null && lastHost.current !== room?.hostId
+    const prev = lastHost.current
     lastHost.current = room?.hostId ?? null
-    if (!changed) return
+    if (prev == null || prev === lastHost.current) return
+    const iPrevHost = prev === me.playerId
+    const iNowHost = lastHost.current === me.playerId
+    if (!iPrevHost && !iNowHost) return
     const wasActive = wanted.current
     leaveVoice()
     if (wasActive && room?.code) {
-      void joinVoice(room.code, isHost, {
-        playerId: me.playerId,
-        name: myName,
-      })
+      void joinVoice(
+        room.code,
+        iNowHost,
+        { playerId: me.playerId, name: myName },
+        iNowHost || fallbackHostCandidate,
+        iNowHost,
+      )
     }
-  }, [connected, me, room?.hostId, room?.code, isHost, myName])
+  }, [connected, me, room?.hostId, room?.code, myName, fallbackHostCandidate])
 
   if (!room || room.mode !== 'online') return null
 
@@ -240,10 +254,12 @@ export function VoiceChat() {
                   disabled={joining}
                   onClick={() => {
                     wanted.current = true
-                    void joinVoice(room.code, isHost, {
-                      playerId: me?.playerId ?? '',
-                      name: myName,
-                    })
+                    void joinVoice(
+                      room.code,
+                      isHost,
+                      { playerId: me?.playerId ?? '', name: myName },
+                      isHost || fallbackHostCandidate,
+                    )
                   }}
                 >
                   <Phone size={18} />

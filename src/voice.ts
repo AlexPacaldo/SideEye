@@ -71,6 +71,8 @@ const listeners = new Set<() => void>()
 
 let reconnectTimer: number | null = null
 let reconnectAttempts = 0
+let realHost = false
+let candidateHost = false
 
 let state: VoiceState = {
   status: 'idle',
@@ -311,6 +313,8 @@ function onData(raw: unknown): void {
 
 function onPeerOpen(): void {
   if (!peer) return
+  reconnectAttempts = 0
+  if (!hosting) candidateHost = false
   setState({ status: 'live', error: null, hosting, selfId: ownId })
   if (hosting || !roomCode) return
   setState({ linking: true })
@@ -329,11 +333,11 @@ function onPeerOpen(): void {
   })
   dataConn.on('error', () => {
     if (state.status === 'error') return
-    scheduleGuestReconnect('Could not reach the host\u2019s voice chat.')
+    scheduleReconnect('Could not reach the host\u2019s voice chat.')
   })
   dataConn.on('close', () => {
     if (state.status === 'error' || state.status === 'left') return
-    scheduleGuestReconnect('The voice host left — reconnecting…')
+    scheduleReconnect('The voice host left — reconnecting…')
   })
 }
 
@@ -418,9 +422,15 @@ function onPeerError(err: { type?: string }): void {
   if (!peer) return
   const type = err?.type
   if (type === 'unavailable-id') {
-    failVoice('Another voice chat is already running for this room.')
+    if (hosting && realHost) {
+      scheduleReconnect('The voice room slot for this game is still occupied — reclaiming…')
+    } else if (hosting) {
+      scheduleReconnect('The voice room slot is busy — retrying shortly…')
+    } else {
+      failVoice('Another voice chat is already running for this room.')
+    }
   } else if (type === 'peer-unavailable') {
-    if (state.status === 'live') scheduleGuestReconnect('The voice host isn\u2019t connected yet — reconnecting…')
+    scheduleReconnect('Looking for the voice host…')
   } else if (type === 'browser-incompatible') {
     failVoice('This browser doesn\u2019t support voice chat.')
   } else if (
@@ -429,7 +439,7 @@ function onPeerError(err: { type?: string }): void {
     type === 'socket-closed' ||
     type === 'server-error'
   ) {
-    scheduleGuestReconnect('Could not reach the voice server. Reconnecting…')
+    scheduleReconnect('Could not reach the voice server. Reconnecting…')
   } else {
     failVoice('Voice chat hit an error. Try again.')
   }
@@ -487,40 +497,39 @@ function resetVoiceCore(): void {
   lastSound.clear()
   talkingSnapshot = {}
   ownId = null
-  if (localStream) {
-    localStream.getTracks().forEach((t) => t.stop())
-    localStream = null
-  }
   if (reconnectTimer != null) {
     window.clearTimeout(reconnectTimer)
     reconnectTimer = null
   }
-  reconnectAttempts = 0
 }
 
-function scheduleGuestReconnect(reason: string): void {
+function scheduleReconnect(reason: string): void {
   if (reconnectTimer != null) return
-  if (hosting) return
   if (state.status === 'error' || state.status === 'left') return
-  if (reconnectAttempts >= 4) {
-    failVoice(reason)
-    return
-  }
   reconnectAttempts += 1
   setState({ status: 'joining', issue: reason, linking: true })
-  const delay = 800 * reconnectAttempts
+  const delay = Math.min(10000, 500 * reconnectAttempts)
   reconnectTimer = window.setTimeout(() => {
     reconnectTimer = null
-    if (!roomCode || hosting || state.status === 'error' || state.status === 'left') return
+    if (!roomCode || state.status === 'error' || state.status === 'left') return
     const code = roomCode
     const info = myInfo
+    const wasHost = hosting
+    const escalate = !hosting && candidateHost && reconnectAttempts >= 3
     resetVoiceCore()
-    void joinVoice(code, false, info ?? { playerId: 'guest', name: 'Guest' })
+    void joinVoice(code, wasHost || escalate, info ?? { playerId: 'guest', name: 'Guest' }, candidateHost, realHost)
   }, delay)
 }
 
 function failVoice(message: string): void {
   resetVoiceCore()
+  if (localStream) {
+    localStream.getTracks().forEach((t) => t.stop())
+    localStream = null
+  }
+  realHost = false
+  candidateHost = false
+  reconnectAttempts = 0
   roomCode = null
   hosting = false
   myInfo = null
@@ -539,6 +548,13 @@ function failVoice(message: string): void {
 export function leaveVoice(): void {
   const hadPeer = Boolean(peer)
   resetVoiceCore()
+  if (localStream) {
+    localStream.getTracks().forEach((t) => t.stop())
+    localStream = null
+  }
+  realHost = false
+  candidateHost = false
+  reconnectAttempts = 0
   roomCode = null
   hosting = false
   myInfo = null
@@ -558,13 +574,16 @@ export async function joinVoice(
   code: string,
   isHost: boolean,
   me: VoiceParticipant,
+  canHost = true,
+  designated = isHost,
 ): Promise<void> {
   if (peer || state.status === 'joining') return
   if (reconnectTimer != null) {
     window.clearTimeout(reconnectTimer)
     reconnectTimer = null
   }
-  reconnectAttempts = 0
+  realHost = designated
+  candidateHost = canHost
   setState({
     status: 'joining',
     error: null,
