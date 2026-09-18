@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react'
 import { VoteTarget } from '../components/game/VoteTarget'
 import { Avatar } from '../components/ui/Avatar'
 import { GameTimer } from '../components/ui/GameTimer'
-import { Loading } from '../components/ui/Loading'
 import { useApp } from '../state/context'
 import type { PublicPlayer, RoomSnapshot } from '../game/types'
 
@@ -101,15 +100,9 @@ function VotingPassPlay() {
   const { snapshot, backend, safe } = useApp()
   const room = snapshot.room!
   const me = snapshot.me!
-  const current = room.players.find((p) => p.id === me.playerId)
   const [selected, setSelected] = useState<string | null>(null)
   const candidates = useMemo(() => candidatesFor(room, me.playerId), [room, me.playerId])
   const clues = useMemo(() => clueMap(room), [room])
-  const total = room.passOrder.length
-  const done = room.submittedIds.length
-  const alive = room.players.filter((p) => !room.eliminatedIds.includes(p.id))
-
-  if (!current) return <Loading label="Next vote…" />
 
   return (
     <div className="voting-screen">
@@ -122,49 +115,33 @@ function VotingPassPlay() {
             {room.phase === 'runoff' ? 'RUN IT BACK.' : "WHO'S ACTING SUS?"}
           </h1>
         </div>
-        <span className="vote-count">
-          {done >= total ? 'ALL IN' : `VOTE ${done + 1} / ${total}`}
-        </span>
       </header>
 
       {room.phase === 'runoff' && (
-        <p className="t-body">
-          No clear answer. Vote again — and&nbsp;this time, mean it.
-        </p>
+        <p className="t-body">No clear answer. One more vote, together.</p>
       )}
 
-      {done >= total ? (
-        <div className="col center" style={{ gap: 14, padding: '30px 0' }}>
-          <span className="big-message">
-            ALL VOTES IN. <span aria-hidden="true">👀</span>
-          </span>
-          <p className="t-body">Counting…</p>
-        </div>
-      ) : (
-        <>
-          <p className="t-body">Agree in person, then tap a name.</p>
-          <VoteTarget
-            players={candidates}
-            clues={clues}
-            selected={selected}
-            onSelect={setSelected}
-            meId={me.playerId}
-          />
-          <button
-            type="button"
-            className="btn btn--primary btn--lg btn--block"
-            disabled={!selected}
-            onClick={() => {
-              if (selected) void safe(backend.castVote(selected))
-              setSelected(null)
-            }}
-          >
-            <Lock size={18} /> LOCK IT IN
-          </button>
-        </>
-      )}
+      <p className="t-body">
+        Decided together? Tap the name and lock it in — one vote, one tap.
+      </p>
 
-      <VoterStatus players={alive} doneIds={room.submittedIds} meId={me.playerId} />
+      <VoteTarget
+        players={candidates}
+        clues={clues}
+        selected={selected}
+        onSelect={setSelected}
+        meId={me.playerId}
+      />
+      <button
+        type="button"
+        className="btn btn--primary btn--lg btn--block"
+        disabled={!selected}
+        onClick={() => {
+          if (selected) void safe(backend.castVote(selected))
+        }}
+      >
+        <Lock size={18} /> LOCK IT IN
+      </button>
     </div>
   )
 }

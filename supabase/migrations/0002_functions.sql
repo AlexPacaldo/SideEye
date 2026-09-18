@@ -429,6 +429,11 @@ begin
     )
   where code = p_code;
 
+  if r.mode = 'passplay' then
+    perform private.enter_phase(p_code, 'voteReveal', null);
+    return;
+  end if;
+
   v_voters := private.voter_ids(p_code, r.phase = 'runoff');
   if not exists (
     select 1 from unnest(v_voters) as a(pid)

@@ -114,16 +114,18 @@ describe('pass & play', () => {
     s = backend.getSnapshot()
     expect(s.room!.phase).toBe('voting')
 
-    // no pass gate during voting: anyone taps a name directly
-    for (let i = 0; i < 4; i += 1) {
-      const voter = s.me!.playerId
-      const target = order[(i + 1) % order.length]
-      expect(target).not.toBe(voter)
-      await backend.castVote(target)
-      s = backend.getSnapshot()
-    }
+    // no per-player voting: the group picks one name, one tap locks it in
+    await backend.advance()
+    s = backend.getSnapshot()
+    expect(s.room!.phase).toBe('voting')
+
+    const voter = s.me!.playerId
+    const target = order.find((id) => id !== voter)!
+    await backend.castVote(target)
+    s = backend.getSnapshot()
 
     expect(s.room!.phase).toBe('voteReveal')
-    expect(s.room!.tally).toHaveLength(4)
+    const mine = s.room!.tally?.find((t) => t.playerId === target)
+    expect(mine?.count).toBe(1)
   })
 })

@@ -542,10 +542,10 @@ passIndex: 0,
       { voterId: playerId, targetId, round: this.room.round },
     ]
     this.room.votes = this.internal!.roundVotes
-    if (!this.room.submittedIds.includes(playerId)) {
+if (!this.room.submittedIds.includes(playerId)) {
       this.room.submittedIds = [...this.room.submittedIds, playerId]
     }
-    if (this.votersDone()) {
+    if (this.room.mode === 'passplay' || this.votersDone()) {
       this.enterPhase('voteReveal', null)
     } else {
       this.advancePass()
