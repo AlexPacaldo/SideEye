@@ -132,9 +132,6 @@ declare
 begin
   if p_runoff then
     select runoff_ids into v_runoff from public.rooms where code = p_code;
-    if v_runoff is not null then
-      return array(select x from unnest(v_alive) x where not (x = any (v_runoff)));
-    end if;
   end if;
   return v_alive;
 end $$;

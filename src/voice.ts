@@ -530,6 +530,7 @@ function scheduleReconnect(reason: string): void {
     const wasHost = hosting
     const escalate = !hosting && candidateHost && reconnectAttempts >= 3
     resetVoiceCore()
+    setState({ status: 'idle', linking: false, issue: null, error: null })
     void joinVoice(
       code,
       wasHost || escalate,
