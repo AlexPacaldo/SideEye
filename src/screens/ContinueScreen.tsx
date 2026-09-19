@@ -7,6 +7,25 @@ export function ContinueScreen() {
   const room = snapshot.room
   if (!room) return null
 
+  // DECIDER (mirror of the server-side private.next_round / leave_room rule
+  // byte-for-byte: the alive host else the alive player in the lowest seat):
+  //   - If the host is STILL alive they decide.
+  //   - Otherwise the lowest-seat alive player decides (exactly the rule
+  //     private.leave_room uses to reassign a departed host: seat order,
+  //     lowest seat wins). Non-deciders see a passive waiting state and can
+  //     never trigger nextRound, so a host who leaves or is eliminated never
+  //     strands the decision and no other player can hijack it.
+  const hostAlive = !!room.hostId && !room.eliminatedIds.includes(room.hostId)
+  const alivePlayers = room.players.filter(
+    (p) => !room.eliminatedIds.includes(p.id),
+  )
+  const deciderId = hostAlive
+    ? room.hostId
+    : (alivePlayers[0]?.id ?? null)
+  const isDecider =
+    !!deciderId && snapshot.me?.playerId !== undefined &&
+    snapshot.me.playerId === deciderId
+
   const out = room.lastEliminated
     ? room.players.find((p) => p.id === room.lastEliminated!.playerId)
     : undefined
@@ -37,22 +56,30 @@ export function ContinueScreen() {
         Another round of clues, or straight to the vote?
       </p>
 
-      <div className="row" style={{ gap: 12, marginTop: 4 }}>
-        <button
-          type="button"
-          className="btn btn--ghost btn--lg grow"
-          onClick={() => void safe(backend.nextRound(false))}
-        >
-          <MessageSquare size={18} /> SAY MORE CLUES
-        </button>
-        <button
-          type="button"
-          className="btn btn--primary btn--lg grow"
-          onClick={() => void safe(backend.nextRound(true))}
-        >
-          <Vote size={18} /> VOTE NOW
-        </button>
-      </div>
+      {isDecider ? (
+        <div className="row" style={{ gap: 12, marginTop: 4 }}>
+          <button
+            type="button"
+            className="btn btn--ghost btn--lg grow"
+            onClick={() => void safe(backend.nextRound(false))}
+          >
+            <MessageSquare size={18} /> SAY MORE CLUES
+          </button>
+          <button
+            type="button"
+            className="btn btn--primary btn--lg grow"
+            onClick={() => void safe(backend.nextRound(true))}
+          >
+            <Vote size={18} /> VOTE NOW
+          </button>
+        </div>
+      ) : (
+        <p className="t-body" style={{ textAlign: 'center', marginTop: 4 }}>
+          {snapshot.room?.players.some((p) => p.id === deciderId)
+            ? 'Waiting for the decider to choose…'
+            : ''}
+        </p>
+      )}
     </div>
   )
 }

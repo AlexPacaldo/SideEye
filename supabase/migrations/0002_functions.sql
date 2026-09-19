@@ -1500,6 +1500,24 @@ declare
 begin
   select * into r from public.rooms where code = private.member_code(v_uid) for update;
   if r.code is null or r.phase <> 'postElimination' then return; end if;
+
+  -- DECIDER-ONLY gate: only the HOST may advance the post-elimination
+  -- decision (skip clues / start voting). Same exact rule that
+  -- private.leave_room uses to reassign a departed host, so a host who
+  -- leaves OR is eliminated is replaced by the alive player in the lowest
+  -- seat - the decision can never be stranded, and non-hosts are no-ops.
+  if v_uid::text is distinct from (
+    select case
+      when r.host_id is not null and r.host_id::text = any (private.alive_ids(r.code))
+        then r.host_id::text
+      else (
+        select player_id from public.room_players
+        where room_code = r.code and player_id = any (private.alive_ids(r.code))
+        order by seat limit 1
+      )
+    end
+  ) then return; end if;
+
   if p_skip_clues then
     perform private.start_voting(r.code, false);
   elsif r.mode = 'passplay' then
