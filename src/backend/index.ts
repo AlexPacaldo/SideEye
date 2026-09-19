@@ -20,5 +20,4 @@ export type {
   GameRecord,
   LeaderboardEntry,
   PlayerSearchResult,
-  PlayerStats,
 } from './types'

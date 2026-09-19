@@ -44,9 +44,9 @@ export interface GameRecord {
 }
 
 export interface LeaderboardEntry {
-  userId: string
+  playerId: string
   name: string
-  avatarUrl: string | null
+  avatarSeed: number
   exp: number
   level: number
   intoLevel: number
@@ -54,15 +54,6 @@ export interface LeaderboardEntry {
   wins: number
   isMe: boolean
   rank: number
-}
-
-export interface PlayerStats {
-  exp: number
-  rank: number
-  level: number
-  intoLevel: number
-  games: number
-  wins: number
 }
 
 export interface Backend {
@@ -81,8 +72,7 @@ export interface Backend {
   addFriend(friendId: string): Promise<void>
   removeFriend(friendId: string): Promise<void>
 
-  getLeaderboard(): Promise<LeaderboardEntry[]>
-  getMyStats(): Promise<PlayerStats | null>
+  getPartyLeaderboard(): Promise<LeaderboardEntry[]>
 
   listMessages(): Promise<ChatMessage[]>
   sendMessage(text: string): Promise<void>

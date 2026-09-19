@@ -9,7 +9,7 @@ import {
   type Snapshot,
 } from '../game/types'
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './env'
-import { BackendError, type Backend, type ChatMessage, type Friend, type GameRecord, type LeaderboardEntry, type PlayerSearchResult, type PlayerStats } from './types'
+import { BackendError, type Backend, type ChatMessage, type Friend, type GameRecord, type LeaderboardEntry, type PlayerSearchResult } from './types'
 
 interface RoomStateRow extends Partial<RoomSnapshot> {
   me_secret?: SecretInfo | null
@@ -200,40 +200,24 @@ export class SupabaseBackend implements Backend {
     }))
   }
 
-  async getLeaderboard(): Promise<LeaderboardEntry[]> {
-    const { data, error } = await this.client.rpc('get_leaderboard')
+  async getPartyLeaderboard(): Promise<LeaderboardEntry[]> {
+    const { data, error } = await this.client.rpc('get_party_leaderboard')
     if (error) return []
     return (data ?? []).map((row: Record<string, unknown>) => {
       const r = row as Record<string, unknown>
-      const isMe = Boolean(r.user_id) && this.snapshot.user?.id === String(r.user_id)
       return {
-        userId: String(r.user_id),
+        playerId: String(r.player_id),
         name: String(r.name ?? 'Player'),
-        avatarUrl: r.avatar_url ? String(r.avatar_url) : null,
+        avatarSeed: Number(r.avatar_seed ?? 0),
         exp: Number(r.exp ?? 0),
         level: Number(r.level ?? 1),
         intoLevel: Number(r.into_level ?? 0),
         games: Number(r.games ?? 0),
         wins: Number(r.wins ?? 0),
-        isMe,
+        isMe: Boolean(r.is_me ?? false),
         rank: Number(r.rank ?? 0),
       }
     })
-  }
-
-  async getMyStats(): Promise<PlayerStats | null> {
-    const { data, error } = await this.client.rpc('get_my_stats')
-    if (error || !data) return null
-    const row = (data as Record<string, unknown>[])[0]
-    if (!row) return null
-    return {
-      exp: Number(row.exp ?? 0),
-      rank: Number(row.rank ?? 0),
-      level: Number(row.level ?? 1),
-      intoLevel: Number(row.into_level ?? 0),
-      games: Number(row.games ?? 0),
-      wins: Number(row.wins ?? 0),
-    }
   }
 
   /* ---------------- room ---------------- */

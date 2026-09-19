@@ -22,7 +22,7 @@ import {
   type Snapshot,
   type Winner,
 } from '../game/types'
-import { BackendError, type Backend, type ChatMessage, type Friend, type GameRecord, type LeaderboardEntry, type PlayerSearchResult, type PlayerStats } from './types'
+import { BackendError, type Backend, type ChatMessage, type Friend, type GameRecord, type LeaderboardEntry, type PlayerSearchResult } from './types'
 
 const CLUE_TURN_SECONDS = 60
 
@@ -52,8 +52,9 @@ interface PersistedUser {
 }
 
 interface BoardEntry {
+  playerId: string
   name: string
-  seed: number
+  avatarSeed: number
   exp: number
   games: number
   wins: number
@@ -123,8 +124,7 @@ private history: GameRecord[] = []
     const stored = load<PersistedUser | null>('sideeye.user', null)
     this.user = stored
 this.history = load<GameRecord[]>('sideeye.history', [])
-    this.friends = load<Friend[]>('sideeye.friends', defaultFriends())
-    this.board = load<BoardEntry[]>('sideeye.board', [])
+this.friends = load<Friend[]>('sideeye.friends', defaultFriends())
     this.recompute()
   }
 
@@ -254,41 +254,29 @@ async getHistory(): Promise<GameRecord[]> {
     return [...this.history].sort((a, b) => b.playedAt - a.playedAt)
   }
 
-  async getLeaderboard(): Promise<LeaderboardEntry[]> {
+  async getPartyLeaderboard(): Promise<LeaderboardEntry[]> {
+    if (!this.room) return []
+    const me = this.snapshot.me?.playerId
     const sorted = [...this.board].sort((a, b) => b.exp - a.exp || a.name.localeCompare(b.name))
     return sorted.map((b, i) => {
       const lvl = levelInfo(b.exp)
       return {
-        userId: b.name,
+        playerId: b.playerId,
         name: b.name,
-        avatarUrl: null,
+        avatarSeed: b.avatarSeed,
         exp: b.exp,
         level: lvl.level,
         intoLevel: lvl.intoLevel,
         games: b.games,
         wins: b.wins,
-        isMe: this.user?.name === b.name,
+        isMe: me != null && b.playerId === me,
         rank: i + 1,
       }
     })
   }
 
-  async getMyStats(): Promise<PlayerStats | null> {
-    const mine = this.user?.name
-    if (!mine || this.board.length === 0) return null
-    const sorted = [...this.board].sort((a, b) => b.exp - a.exp || a.name.localeCompare(b.name))
-    const idx = sorted.findIndex((b) => b.name === mine)
-    if (idx < 0) return null
-    const entry = sorted[idx]!
-    const lvl = levelInfo(entry.exp)
-    return {
-      exp: entry.exp,
-      rank: idx + 1,
-      level: lvl.level,
-      intoLevel: lvl.intoLevel,
-      games: entry.games,
-      wins: entry.wins,
-    }
+  private loadPartyBoard(code: string): void {
+    this.board = load<BoardEntry[]>(`sideeye.party.${code}`, [])
   }
 
   /* ---------------- chat ---------------- */
@@ -420,6 +408,7 @@ passIndex: 0,
       passRevealed: false,
       passOrder: [],
     }
+    this.loadPartyBoard(code)
     this.commit()
     this.scheduleBots()
   }
@@ -492,6 +481,7 @@ passIndex: 0,
       passRevealed: false,
       passOrder: [],
     }
+    this.loadPartyBoard(code.toUpperCase())
     this.commit()
   }
 
@@ -506,6 +496,7 @@ private leaveRoomInternal(): void {
     this.chatListeners.clear()
     this.room = null
     this.internal = null
+    this.board = []
     this.seenSecrets.clear()
     try {
       localStorage.removeItem('sideeye.room')
@@ -1002,19 +993,23 @@ private recordGame(): void {
     for (const r of room.reveal) {
       const player = room.players.find((p) => p.id === r.playerId)
       if (player?.isBot) continue
+      const playerId = player?.id ?? r.playerId
       const name = player?.name ?? 'Player'
       const role = r.role
       const survived = r.eliminatedRound == null
       const exp = breakdownExp(winner, role, survived, record.rounds).total
-      const entry = next.find((b) => b.name === name)
+      const entry = next.find((b) => b.playerId === playerId)
       if (entry) {
+        entry.name = name
+        entry.avatarSeed = player?.avatarSeed ?? entry.avatarSeed
         entry.exp += exp
         entry.games += 1
         if (role === winningRole(winner)) entry.wins += 1
       } else {
         next.push({
+          playerId,
           name,
-          seed: player?.avatarSeed ?? 0,
+          avatarSeed: player?.avatarSeed ?? 0,
           exp,
           games: 1,
           wins: role === winningRole(winner) ? 1 : 0,
@@ -1023,7 +1018,7 @@ private recordGame(): void {
     }
     next.sort((a, b) => b.exp - a.exp || a.name.localeCompare(b.name))
     this.board = next
-    save('sideeye.board', this.board)
+    save(`sideeye.party.${room.code}`, this.board)
   }
 
   /* ---------------- helpers ---------------- */

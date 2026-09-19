@@ -1,5 +1,7 @@
 -- =========================================================
--- Side Eye — Leaderboard + EXP (run AFTER 0002_functions.sql)
+-- Side Eye — Party leaderboard + EXP (run AFTER 0002_functions.sql)
+-- Every party (room) keeps its OWN leaderboard for whoever is in it,
+-- accumulated across the games that party plays (RUN IT BACK / lobby replays).
 -- EXP economy:
 --   +10   finish a game
 --   +20   win as a civilian
@@ -11,38 +13,45 @@
 -- Idempotent: safe to run more than once.
 -- =========================================================
 
-alter table public.profiles
-  add column if not exists exp int not null default 0;
+drop table if exists public.player_results;
+alter table public.profiles drop column if exists exp;
+drop function if exists public.get_leaderboard();
+drop function if exists public.get_my_stats();
 
 -- =========================================================
--- Per-game player results (one row per human player)
+-- Per-party standings (one row per player in the party)
+-- keyed by (room_code, player_id) — scraped when the party's room ends.
 -- =========================================================
-create table if not exists public.player_results (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  code text not null,
-  played_at timestamptz not null default now(),
-  winner text not null,
-  your_role text not null,
-  exp_earned int not null default 0,
-  survived boolean not null default false,
-  rounds int not null default 0
+create table if not exists public.party_stats (
+  room_code text not null,
+  player_id text not null,
+  name text not null default 'Player',
+  avatar_seed int not null default 0,
+  exp int not null default 0,
+  games int not null default 0,
+  wins int not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (room_code, player_id)
 );
 
-create index if not exists player_results_user_idx
-  on public.player_results(user_id, played_at desc);
+create index if not exists party_stats_room_idx
+  on public.party_stats(room_code, exp desc);
 
-alter table public.player_results enable row level security;
+alter table public.party_stats enable row level security;
 
-drop policy if exists player_results_select on public.player_results;
-create policy player_results_select on public.player_results
-  for select to authenticated using (user_id = auth.uid());
+drop policy if exists party_stats_select on public.party_stats;
+create policy party_stats_select on public.party_stats
+  for select to authenticated using (
+    exists (
+      select 1 from public.memberships m
+      where m.user_id = auth.uid() and m.room_code = party_stats.room_code
+    )
+  );
 
-grant select on public.player_results to authenticated;
-grant select (id, name, avatar_url, exp) on public.profiles to authenticated;
+grant select on public.party_stats to authenticated;
 
 -- =========================================================
--- Award EXP to every human player when a game finishes
+-- Award EXP to every player in the party when a game finishes
 -- =========================================================
 create or replace function private.award_game_exp(p_code text)
 returns void
@@ -71,33 +80,39 @@ begin
   end if;
 
   for rec in
-    select p.user_id,
+    select p.player_id,
+           p.name,
+           p.avatar_seed,
            s.role,
            (rp.eliminated ? p.player_id) as eliminated
     from public.room_players p
     join private.room_secrets s
       on s.room_code = p.room_code and s.player_id = p.player_id
     join private.room_private rp on rp.room_code = p.room_code
-    where p.room_code = p_code and p.user_id is not null
+    where p.room_code = p_code and not p.is_bot
   loop
     v_exp := 10
       + case when rec.role = v_win_role then v_win_amt else 0 end
       + case when rec.eliminated then 0 else 5 end
       + least(25, greatest(0, r.round) * 5);
 
-    insert into public.player_results
-      (user_id, code, winner, your_role, exp_earned, survived, rounds)
+    insert into public.party_stats
+      (room_code, player_id, name, avatar_seed, exp, games, wins, updated_at)
     values
-      (rec.user_id, p_code, r.winner, rec.role, v_exp, not rec.eliminated, r.round);
-
-    update public.profiles
-      set exp = exp + v_exp, updated_at = now()
-      where id = rec.user_id;
+      (p_code, rec.player_id, rec.name, rec.avatar_seed, v_exp, 1,
+       case when rec.role = v_win_role then 1 else 0 end, now())
+    on conflict (room_code, player_id) do update
+      set name = excluded.name,
+          avatar_seed = excluded.avatar_seed,
+          exp = public.party_stats.exp + excluded.exp,
+          games = public.party_stats.games + excluded.games,
+          wins = public.party_stats.wins + excluded.wins,
+          updated_at = now();
   end loop;
 end $$;
 
 -- =========================================================
--- finish_game now also hands out EXP (re-defined, idempotent)
+-- finish_game also hands out EXP (re-defined, idempotent)
 -- =========================================================
 create or replace function private.finish_game(p_code text)
 returns void
@@ -150,70 +165,40 @@ begin
 end $$;
 
 -- =========================================================
--- Public RPCs
+-- Public RPC — the current party's leaderboard.
+-- Scoped to the caller's OWN party via their membership.
 -- =========================================================
-create or replace function public.get_leaderboard()
+create or replace function public.get_party_leaderboard()
 returns table (
   rank int,
-  user_id uuid,
+  player_id text,
   name text,
-  avatar_url text,
+  avatar_seed int,
   exp int,
   level int,
   into_level int,
   games int,
-  wins int
+  wins int,
+  is_me boolean
 )
 language sql
 security definer
 set search_path = private, public
 as $$
   select
-    row_number() over (order by p.exp desc, p.name asc)::int as rank,
-    p.id as user_id,
-    p.name,
-    p.avatar_url,
-    p.exp,
-    floor(p.exp / 100)::int + 1 as level,
-    p.exp % 100 as into_level,
-    coalesce(pr.games, 0)::int as games,
-    coalesce(pr.wins, 0)::int as wins
-  from public.profiles p
-  left join (
-    select user_id,
-           count(*) as games,
-           count(*) filter (where winner = your_role) as wins
-    from public.player_results
-    group by user_id
-  ) pr on pr.user_id = p.id
-  where p.exp > 0
-  order by p.exp desc, p.name asc
-  limit 60
+    row_number() over (order by ps.exp desc, ps.name asc)::int as rank,
+    ps.player_id,
+    ps.name,
+    ps.avatar_seed,
+    ps.exp,
+    floor(ps.exp / 100)::int + 1 as level,
+    ps.exp % 100 as into_level,
+    ps.games,
+    ps.wins,
+    ps.player_id = private.require_uid()::text as is_me
+  from public.party_stats ps
+  where ps.room_code = private.member_code(private.require_uid())
+  order by ps.exp desc, ps.name asc
 $$;
 
-create or replace function public.get_my_stats()
-returns table (rank int, exp int, level int, into_level int, games int, wins int)
-language sql
-security definer
-set search_path = private, public
-as $$
-  select
-    (select count(*)::int + 1 from public.profiles where exp > me.exp) as rank,
-    me.exp,
-    floor(me.exp / 100)::int + 1 as level,
-    me.exp % 100 as into_level,
-    coalesce(pr.games, 0)::int as games,
-    coalesce(pr.wins, 0)::int as wins
-  from public.profiles me
-  left join (
-    select user_id,
-           count(*) as games,
-           count(*) filter (where winner = your_role) as wins
-    from public.player_results
-    group by user_id
-  ) pr on pr.user_id = me.id
-  where me.id = auth.uid()
-$$;
-
-grant execute on function public.get_leaderboard() to authenticated;
-grant execute on function public.get_my_stats() to authenticated;
+grant execute on function public.get_party_leaderboard() to authenticated;

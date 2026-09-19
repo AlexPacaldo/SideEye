@@ -13,12 +13,20 @@ export function LeaderboardScreen({
   onBack: () => void
   onPlay: () => void
 }) {
-  const { backend } = useApp()
+  const { backend, snapshot } = useApp()
+  const inRoom = Boolean(snapshot.room)
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null)
 
   useEffect(() => {
-    void backend.getLeaderboard().then(setEntries)
-  }, [backend])
+    if (!inRoom) return
+    let active = true
+    void backend.getPartyLeaderboard().then((b) => {
+      if (active) setEntries(b)
+    })
+    return () => {
+      active = false
+    }
+  }, [backend, inRoom])
 
   return (
     <div className="subscreen">
@@ -27,11 +35,22 @@ export function LeaderboardScreen({
       </button>
 
       <header className="subscreen__head">
-        <h1 className="t-title">Leaderboard</h1>
-        <p className="t-body">The spies who stay undercover the longest.</p>
+        <h1 className="t-title">Party leaderboard</h1>
+        <p className="t-body">How this party's spies stack up across your games.</p>
       </header>
 
-      {entries === null ? (
+      {!inRoom ? (
+        <div className="empty">
+          <span className="empty__glyph" aria-hidden="true">
+            🏆
+          </span>
+          <span className="big-message">NO PARTY YET.</span>
+          <p className="t-body">Start a party to see its leaderboard.</p>
+          <button type="button" className="btn btn--primary" onClick={onPlay}>
+            START A PARTY
+          </button>
+        </div>
+      ) : entries === null ? (
         <Loading label="Checking the spies…" />
       ) : entries.length === 0 ? (
         <div className="empty">
@@ -39,15 +58,12 @@ export function LeaderboardScreen({
             🏆
           </span>
           <span className="big-message">NO SPIES YET.</span>
-          <p className="t-body">Finish your first game to climb the board.</p>
-          <button type="button" className="btn btn--primary" onClick={onPlay}>
-            PLAY A GAME
-          </button>
+          <p className="t-body">Finish a game in this party to climb the board.</p>
         </div>
       ) : (
         <ul className="board-list">
-          {entries.map((entry, i) => (
-            <li key={entry.userId} className={'board-row' + (entry.isMe ? ' board-row--me' : '')}>
+          {entries.map((entry) => (
+            <li key={entry.playerId} className={'board-row' + (entry.isMe ? ' board-row--me' : '')}>
               <span className="board-row__rank">
                 {entry.rank <= 3 ? (
                   <span className="board-row__medal" aria-hidden="true">
@@ -57,7 +73,7 @@ export function LeaderboardScreen({
                   entry.rank
                 )}
               </span>
-              <Avatar seed={i} name={entry.name} avatarUrl={entry.avatarUrl} size={38} />
+              <Avatar seed={entry.avatarSeed} name={entry.name} avatarUrl={null} size={38} />
               <span className="col grow" style={{ gap: 2 }}>
                 <span className="t-section">
                   {entry.name}
