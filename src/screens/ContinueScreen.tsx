@@ -7,14 +7,15 @@ export function ContinueScreen() {
   const room = snapshot.room
   if (!room) return null
 
+  // Pass & play: one device, everyone in the room votes in person, so the
+  // holder of the phone always decides — no decider logic applies.
+  const isPassPlay = room.mode === 'passplay'
+
   // DECIDER (mirror of the server-side private.next_round / leave_room rule
-  // byte-for-byte: the alive host else the alive player in the lowest seat):
-  //   - If the host is STILL alive they decide.
-  //   - Otherwise the lowest-seat alive player decides (exactly the rule
-  //     private.leave_room uses to reassign a departed host: seat order,
-  //     lowest seat wins). Non-deciders see a passive waiting state and can
-  //     never trigger nextRound, so a host who leaves or is eliminated never
-  //     strands the decision and no other player can hijack it.
+  // byte-for-byte: the alive host else the alive player in the lowest seat).
+  // Multiplayer only: non-deciders see a passive waiting state and can never
+  // trigger nextRound, so a host who leaves or is eliminated never strands
+  // the decision and no other player can hijack it.
   const hostAlive = !!room.hostId && !room.eliminatedIds.includes(room.hostId)
   const alivePlayers = room.players.filter(
     (p) => !room.eliminatedIds.includes(p.id),
@@ -23,8 +24,9 @@ export function ContinueScreen() {
     ? room.hostId
     : (alivePlayers[0]?.id ?? null)
   const isDecider =
-    !!deciderId && snapshot.me?.playerId !== undefined &&
-    snapshot.me.playerId === deciderId
+    isPassPlay ||
+    (!!deciderId && snapshot.me?.playerId !== undefined &&
+      snapshot.me.playerId === deciderId)
 
   const out = room.lastEliminated
     ? room.players.find((p) => p.id === room.lastEliminated!.playerId)
