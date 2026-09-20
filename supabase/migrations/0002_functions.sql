@@ -1497,12 +1497,14 @@ begin
   select * into r from public.rooms where code = private.member_code(v_uid) for update;
   if r.code is null or r.phase <> 'postElimination' then return; end if;
 
-  -- DECIDER-ONLY gate: only the HOST may advance the post-elimination
-  -- decision (skip clues / start voting). Same exact rule that
-  -- private.leave_room uses to reassign a departed host, so a host who
+  -- DECIDER-ONLY gate (ONLINE only): only the HOST may advance the
+  -- post-elimination decision (skip clues / start voting). Same exact rule
+  -- that private.leave_room uses to reassign a departed host, so a host who
   -- leaves OR is eliminated is replaced by the alive player in the lowest
   -- seat - the decision can never be stranded, and non-hosts are no-ops.
-  if v_uid::text is distinct from (
+  -- Pass & play is exempt: one device, everyone votes in person, so whoever
+  -- holds the phone decides (no host exists).
+  if r.mode <> 'passplay' and v_uid::text is distinct from (
     select case
       when r.host_id is not null and r.host_id::text = any (private.alive_ids(r.code))
         then r.host_id::text
