@@ -140,25 +140,27 @@ describe('pass & play', () => {
       internal: { roles: Record<string, Role> }
     }).internal.roles
     expect(s.me).not.toBeNull()
-    const voter = s.me!.playerId
-    const civilianId = Object.keys(roles).find(
-      (id) => roles[id] === 'civilian' && id !== voter,
+    // Under a 5-player default setup (3 civilians, 1 undercover, 1 Mr. White)
+    // voting out a civilian would reach 2 infiltrators vs 2 civilians and end
+    // the game. Vote out the undercover instead so the game keeps running.
+    const undercoverId = Object.keys(roles).find(
+      (id) => roles[id] === 'undercover',
     )
-    expect(civilianId).toBeTruthy()
+    expect(undercoverId).toBeTruthy()
 
     await backend.advance() // discussion -> voting
     s = backend.getSnapshot()
     expect(s.room!.phase).toBe('voting')
 
-    await backend.castVote(civilianId!)
+    await backend.castVote(undercoverId!)
     s = backend.getSnapshot()
     expect(s.room!.phase).toBe('voteReveal')
-    expect(s.room!.tally?.find((t) => t.playerId === civilianId)?.count).toBe(1)
+    expect(s.room!.tally?.find((t) => t.playerId === undercoverId)?.count).toBe(1)
 
     await backend.advance() // resolve -> elimination
     s = backend.getSnapshot()
     expect(s.room!.phase).toBe('elimination')
-    expect(s.room!.lastEliminated?.playerId).toBe(civilianId)
+    expect(s.room!.lastEliminated?.playerId).toBe(undercoverId)
 
     await backend.advance() // continue -> decision
     s = backend.getSnapshot()
@@ -172,6 +174,6 @@ describe('pass & play', () => {
     expect(s.room!.round).toBe(2)
     const alive = s.room!.passOrder
     expect(alive).toHaveLength(4)
-    expect(alive).not.toContain(civilianId)
+    expect(alive).not.toContain(undercoverId)
   })
 })

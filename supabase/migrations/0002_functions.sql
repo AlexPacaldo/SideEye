@@ -176,7 +176,11 @@ as $$
   left join counts c on c.pid = a.pid
 $$;
 
-create or replace function private.check_win(p_code text, p_last_role text)
+create or replace function private.check_win(
+  p_code text,
+  p_pending_guess boolean,
+  p_guess_correct boolean
+)
 returns table (winner text, needs_guess boolean)
 language plpgsql
 stable
@@ -185,53 +189,43 @@ declare
   v_alive text[] := private.alive_ids(p_code);
   v_roles jsonb := private.role_map(p_code);
   v_civs int := 0;
-  v_ucs int := 0;
-  v_mw_alive boolean := false;
-  v_used boolean := false;
-  v_undercover_alive boolean;
+  v_infiltrators int := 0;
   rec record;
 begin
-  for rec in select x as id from unnest(v_alive) x loop
-    if v_roles ->> rec.id = 'civilian' then v_civs := v_civs + 1;
-    elsif v_roles ->> rec.id = 'undercover' then v_ucs := v_ucs + 1;
-    elsif v_roles ->> rec.id = 'mrwhite' then v_mw_alive := true;
-    end if;
-  end loop;
-  v_undercover_alive := v_ucs > 0;
-
-  select mr_white_guess_used into v_used from private.room_private where room_code = p_code;
-  v_used := coalesce(v_used, false);
-
-  if p_last_role = 'mrwhite' and not v_used and not v_mw_alive then
+  -- 1. An eliminated Mr. White is still owed their one final guess:
+  --    hold the normal winner check until it happens.
+  if p_pending_guess then
     return query select null::text, true;
     return;
   end if;
 
-  if not v_undercover_alive and not v_mw_alive then
+  -- 2. A correct Mr. White guess wins immediately and overrides everything.
+  if p_guess_correct then
+    return query select 'mr_white'::text, false;
+    return;
+  end if;
+
+  for rec in select x as id from unnest(v_alive) x loop
+    if v_roles ->> rec.id = 'civilian' then
+      v_civs := v_civs + 1;
+    elsif v_roles ->> rec.id in ('undercover', 'mrwhite') then
+      v_infiltrators := v_infiltrators + 1;
+    end if;
+  end loop;
+
+  -- 3. No infiltrators left: civilians win.
+  if v_infiltrators = 0 then
     return query select 'civilians'::text, false;
     return;
   end if;
 
-  if v_mw_alive and v_ucs = 0 and v_civs <= 1 then
-    return query select null::text, true;
+  -- 4. Infiltrators (Undercover + Mr. White) reach parity or better: they win.
+  if v_infiltrators >= v_civs then
+    return query select 'infiltrators'::text, false;
     return;
   end if;
 
-  if not v_undercover_alive and v_mw_alive and v_civs = 1 then
-    return query select null::text, true;
-    return;
-  end if;
-
-  if v_ucs >= v_civs and not (v_mw_alive and v_civs = 0) then
-    return query select 'undercover'::text, false;
-    return;
-  end if;
-
-  if v_civs = 0 and not v_mw_alive then
-    return query select 'undercover'::text, false;
-    return;
-  end if;
-
+  -- 5. Otherwise the game keeps going.
   return query select null::text, false;
 end $$;
 
@@ -486,9 +480,7 @@ declare
   v_word text;
   v_guess text;
   v_correct boolean;
-  v_alive text[];
-  v_ucs int;
-  v_winner text;
+  w record;
 begin
   select * into r from public.rooms where code = p_code for update;
   if r.code is null or r.phase <> 'mrWhiteGuess' then return; end if;
@@ -499,21 +491,29 @@ begin
   v_correct := length(v_guess) > 0
     and v_guess = lower(regexp_replace(coalesce(v_word, ''), '[^a-zA-Z0-9]', '', 'g'));
 
-  update private.room_private set mr_white_guess_used = true where room_code = p_code;
+  update private.room_private
+    set mr_white_guess_used = true,
+        pending_mr_white_id = null
+  where room_code = p_code;
   update public.rooms set mr_white_guess_correct = v_correct where code = p_code;
 
-  if v_correct then
-    v_winner := 'mrwhite';
-  else
-    v_alive := private.alive_ids(p_code);
-    select count(*) into v_ucs
-    from private.room_secrets
-    where room_code = p_code and role = 'undercover' and player_id = any (v_alive);
-    v_winner := case when v_ucs > 0 then 'undercover' else 'civilians' end;
+  select * into w from private.check_win(p_code, false, v_correct);
+
+  if w.needs_guess then
+    return;
   end if;
 
-  update public.rooms set winner = v_winner where code = p_code;
-  perform private.finish_game(p_code);
+  if w.winner is not null then
+    update public.rooms set winner = w.winner where code = p_code;
+    perform private.finish_game(p_code);
+    return;
+  end if;
+
+  -- Incorrect guess: Mr. White stays gone, then re-run the normal winner
+  -- calculation. If neither side has won yet, the game keeps going.
+  update public.rooms set round = r.round + 1, tally = null, runoff_ids = null where code = p_code;
+  delete from public.votes where room_code = p_code;
+  perform private.enter_phase(p_code, 'postElimination', null);
 end $$;
 
 create or replace function private.start_voting(p_code text, p_runoff boolean)
@@ -546,7 +546,7 @@ as $$
 declare
   r public.rooms%rowtype;
   v_role text;
-  v_alive text[];
+  v_used boolean;
   w record;
 begin
   select * into r from public.rooms where code = p_code for update;
@@ -563,23 +563,19 @@ begin
     set eliminated = eliminated || jsonb_build_object(p_id, r.round)
   where room_code = p_code;
 
-  v_alive := private.alive_ids(p_code);
-  select * into w from private.check_win(p_code, v_role);
+  select mr_white_guess_used into v_used from private.room_private where room_code = p_code;
+  v_used := coalesce(v_used, false);
+
+  select * into w
+  from private.check_win(
+    p_code,
+    v_role = 'mrwhite' and not v_used,
+    false
+  );
 
   update private.room_private
     set pending_winner = w.winner,
-        pending_mr_white_id = case
-          when w.needs_guess then
-            case when v_role = 'mrwhite' then p_id
-                 else coalesce((
-                   select s.player_id from private.room_secrets s
-                   where s.room_code = p_code and s.role = 'mrwhite'
-                     and s.player_id = any (v_alive)
-                   limit 1
-                 ), p_id)
-            end
-          else null
-        end
+        pending_mr_white_id = case when w.needs_guess then p_id else null end
   where room_code = p_code;
 
   perform private.enter_phase(p_code, 'elimination', null);

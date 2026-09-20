@@ -16,7 +16,7 @@ export type Phase =
   | 'mrWhiteGuess'
   | 'gameOver'
 
-export type Winner = 'civilians' | 'undercover' | 'mrwhite'
+export type Winner = 'civilians' | 'infiltrators' | 'mr_white'
 
 export interface GameSettings {
   undercoverCount: number

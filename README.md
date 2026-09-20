@@ -21,9 +21,11 @@ The most-voted player is eliminated and their role revealed.
 Win conditions:
 
 - **Civilians** win by eliminating every Undercover and Mr. White.
-- **Undercover** wins by surviving until only they and Mr. White remain.
-- **Mr. White** wins by surviving to the end, or by guessing the secret word
-  during the final guess phase.
+- **Infiltrators** (Undercover + Mr. White together) win as soon as their living
+  count reaches or exceeds the living Civilian count.
+- **Mr. White** wins solo if they were voted out and then correctly guess the
+  secret word during the final guess phase; a wrong guess hands the game back
+  to the normal winner calculation.
 
 ## Features
 

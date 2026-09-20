@@ -21,12 +21,12 @@ const COPY: Record<Winner, { title: string; sub: string; emoji: string }> = {
     sub: 'You caught them all.',
     emoji: '🎉',
   },
-  undercover: {
-    title: 'UNDERCOVER WINS!',
+  infiltrators: {
+    title: 'INFILTRATORS WIN!',
     sub: 'Blended in. Got away with it.',
     emoji: '🕶️',
   },
-  mrwhite: {
+  mr_white: {
     title: 'MR. WHITE WINS!',
     sub: 'No word needed. Just vibes.',
     emoji: '🃏',

@@ -3,12 +3,14 @@ import { useEffect, useState } from 'react'
 import type { GameRecord } from '../backend'
 import { Loading } from '../components/ui/Loading'
 import { ROLE_META } from '../game/identity'
-import type { Role, Winner } from '../game/types'
+import type { Role } from '../game/types'
 import { useApp } from '../state/context'
 
-const WINNER_LABEL: Record<Winner, string> = {
+const WINNER_LABEL: Record<string, string> = {
   civilians: 'Civilians won',
-  undercover: 'Undercover won',
+  infiltrators: 'Infiltrators won',
+  mr_white: 'Mr. White won',
+  undercover: 'Infiltrators won',
   mrwhite: 'Mr. White won',
 }
 
@@ -59,7 +61,7 @@ export function HistoryScreen({ onBack, onPlay }: { onBack: () => void; onPlay: 
                 </span>
                 <span className="col grow" style={{ gap: 2 }}>
                   <span className="t-section">
-                    {WINNER_LABEL[record.winner as Winner] ?? 'Game over'}
+                    {WINNER_LABEL[record.winner] ?? 'Game over'}
                   </span>
                   <span className="t-muted" style={{ fontSize: '0.82rem' }}>
                     {record.rounds} rounds · you were {meta.label} · {record.code}

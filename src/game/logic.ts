@@ -97,8 +97,25 @@ export function livingUndercover(
   return aliveIds.filter((id) => roles[id] === 'undercover')
 }
 
+export function livingMrWhite(
+  aliveIds: string[],
+  roles: Record<string, Role>,
+): string[] {
+  return aliveIds.filter((id) => roles[id] === 'mrwhite')
+}
+
+function livingInfiltrators(
+  aliveIds: string[],
+  roles: Record<string, Role>,
+): string[] {
+  return aliveIds.filter(
+    (id) => roles[id] === 'undercover' || roles[id] === 'mrwhite',
+  )
+}
+
 export interface WinCheck {
   winner: Winner | null
+  gameOver: boolean
   needsMrWhiteGuess: boolean
   reason: string
 }
@@ -106,87 +123,63 @@ export interface WinCheck {
 export interface WinContext {
   aliveIds: string[]
   roles: Record<string, Role>
-  mrWhiteAlive: boolean
-  undercoverAlive: boolean
-  mrWhiteGuessUsed: boolean
-  lastEliminatedRole: Role | null
+  /** True when an eliminated Mr. White is still owed their one final guess. */
+  pendingMrWhiteGuess: boolean
+  /** Outcome of the Mr. White final guess; null when it hasn't happened yet. */
+  mrWhiteGuessCorrect: boolean | null
 }
 
+/**
+ * Authoritative win evaluation. Order of operations:
+ *  1. pending Mr. White guess  -> hold the normal winner check
+ *  2. correct Mr. White guess  -> Mr. White wins immediately
+ *  3. no infiltrators alive    -> civilians win
+ *  4. infiltrators >= civs     -> infiltrators win
+ *  5. otherwise                -> keep playing
+ */
 export function checkWin(ctx: WinContext): WinCheck {
-  const {
-    aliveIds,
-    roles,
-    mrWhiteAlive,
-    undercoverAlive,
-    mrWhiteGuessUsed,
-    lastEliminatedRole,
-  } = ctx
-  const civs = livingCivilians(aliveIds, roles)
-  const ucs = livingUndercover(aliveIds, roles)
+  const { aliveIds, roles, pendingMrWhiteGuess, mrWhiteGuessCorrect } = ctx
 
-  if (
-    lastEliminatedRole === 'mrwhite' &&
-    !mrWhiteGuessUsed &&
-    mrWhiteAlive === false
-  ) {
+  if (pendingMrWhiteGuess) {
     return {
       winner: null,
+      gameOver: false,
       needsMrWhiteGuess: true,
       reason: 'Mr. White gets one last shot.',
     }
   }
 
-  if (!undercoverAlive && !mrWhiteAlive) {
+  if (mrWhiteGuessCorrect === true) {
+    return {
+      winner: 'mr_white',
+      gameOver: true,
+      needsMrWhiteGuess: false,
+      reason: 'Mr. White guessed the secret word.',
+    }
+  }
+
+  const civs = livingCivilians(aliveIds, roles)
+  const infiltrators = livingInfiltrators(aliveIds, roles)
+
+  if (infiltrators.length === 0) {
     return {
       winner: 'civilians',
+      gameOver: true,
       needsMrWhiteGuess: false,
       reason: 'You caught them all.',
     }
   }
 
-  if (mrWhiteAlive && ucs.length === 0 && civs.length <= 1) {
+  if (infiltrators.length >= civs.length) {
     return {
-      winner: null,
-      needsMrWhiteGuess: true,
-      reason: 'Only Mr. White and one civilian left. He has to guess.',
-    }
-  }
-
-  if (!undercoverAlive && mrWhiteAlive && civs.length === 1) {
-    return {
-      winner: null,
-      needsMrWhiteGuess: true,
-      reason: 'One civilian, one Mr. White. Guess time.',
-    }
-  }
-
-  if (ucs.length >= civs.length && !(mrWhiteAlive && civs.length === 0)) {
-    return {
-      winner: 'undercover',
+      winner: 'infiltrators',
+      gameOver: true,
       needsMrWhiteGuess: false,
-      reason: 'The undercover blended in too well.',
+      reason: 'The infiltrators blended in too well.',
     }
   }
 
-  if (civs.length === 0 && !mrWhiteAlive) {
-    return {
-      winner: 'undercover',
-      needsMrWhiteGuess: false,
-      reason: 'No civilians left standing.',
-    }
-  }
-
-  return { winner: null, needsMrWhiteGuess: false, reason: '' }
-}
-
-export function resolveMrWhiteGuess(
-  correct: boolean,
-  aliveIds: string[],
-  roles: Record<string, Role>,
-): Winner {
-  if (correct) return 'mrwhite'
-  const ucs = livingUndercover(aliveIds, roles)
-  return ucs.length > 0 ? 'undercover' : 'civilians'
+  return { winner: null, gameOver: false, needsMrWhiteGuess: false, reason: '' }
 }
 
 export function clampSettingsForCount(

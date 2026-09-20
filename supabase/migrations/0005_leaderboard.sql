@@ -5,8 +5,8 @@
 -- EXP economy:
 --   +10   finish a game
 --   +20   win as a civilian
---   +40   win as undercover
---   +120  Mr. White wins (rare — no word, must survive into the final guess)
+--   +40   win as an infiltrator (Undercover or Mr. White)
+--   +120  Mr. White wins (rare — solo win from the final guess)
 --   +5    survived the game
 --   +5    per round played (capped at +25)
 -- Levels: every 100 EXP = 1 level.
@@ -60,7 +60,7 @@ volatile
 as $$
 declare
   r public.rooms%rowtype;
-  v_win_role text;
+  v_win_roles text[];
   v_win_amt int;
   rec record;
   v_exp int;
@@ -68,15 +68,17 @@ begin
   select * into r from public.rooms where code = p_code;
   if r.code is null or r.winner is null then return; end if;
 
-  if r.winner = 'undercover' then
-    v_win_role := 'undercover';
-    v_win_amt := 40;
-  elsif r.winner = 'mrwhite' then
-    v_win_role := 'mrwhite';
+  if r.winner = 'civilians' then
+    v_win_roles := array['civilian'];
+    v_win_amt := 20;
+  elsif r.winner = 'mr_white' or r.winner = 'mrwhite' then
+    v_win_roles := array['mrwhite'];
     v_win_amt := 120;
   else
-    v_win_role := 'civilian';
-    v_win_amt := 20;
+    -- 'infiltrators' (and legacy 'undercover' records) count both
+    -- Undercover and Mr. White as the winning side.
+    v_win_roles := array['undercover', 'mrwhite'];
+    v_win_amt := 40;
   end if;
 
   for rec in
@@ -92,7 +94,7 @@ begin
     where p.room_code = p_code and not p.is_bot
   loop
     v_exp := 10
-      + case when rec.role = v_win_role then v_win_amt else 0 end
+      + case when rec.role = any (v_win_roles) then v_win_amt else 0 end
       + case when rec.eliminated then 0 else 5 end
       + least(25, greatest(0, r.round) * 5);
 
@@ -100,7 +102,7 @@ begin
       (room_code, player_id, name, avatar_seed, exp, games, wins, updated_at)
     values
       (p_code, rec.player_id, rec.name, rec.avatar_seed, v_exp, 1,
-       case when rec.role = v_win_role then 1 else 0 end, now())
+       case when rec.role = any (v_win_roles) then 1 else 0 end, now())
     on conflict (room_code, player_id) do update
       set name = excluded.name,
           avatar_seed = excluded.avatar_seed,

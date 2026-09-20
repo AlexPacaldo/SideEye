@@ -4,7 +4,6 @@ import {
   assignRoles,
   checkWin,
   generateRoomCode,
-  resolveMrWhiteGuess,
   tallyVotes,
   topVoted,
 } from '../game/logic'
@@ -636,18 +635,34 @@ if (!this.room.submittedIds.includes(playerId)) {
     }
   }
 
-  async submitMrWhiteGuess(word: string): Promise<void> {
+async submitMrWhiteGuess(word: string): Promise<void> {
     if (!this.room || !this.internal) return
     if (this.room.phase !== 'mrWhiteGuess') return
     const guess = normalize(word)
     const correct = guess.length > 0 && guess === normalize(this.internal.secretWord)
     this.internal.mrWhiteGuessUsed = true
     this.room.mrWhiteGuessCorrect = correct
-    const alive = this.aliveIds().filter(
-      (id) => id !== this.room!.mrWhiteGuessingId,
-    )
-    this.room.winner = resolveMrWhiteGuess(correct, alive, this.internal.roles)
-    this.finishGame()
+    this.internal.pendingMrWhiteId = null
+
+    const check = checkWin({
+      aliveIds: this.aliveIds(),
+      roles: this.internal.roles,
+      pendingMrWhiteGuess: false,
+      mrWhiteGuessCorrect: correct,
+    })
+
+    if (check.gameOver) {
+      this.room.winner = check.winner
+      this.finishGame()
+      return
+    }
+
+    this.room.round += 1
+    this.room.votes = []
+    this.room.tally = null
+    this.room.runoffIds = null
+    this.internal.roundVotes = []
+    this.enterPhase('postElimination', null)
   }
 
   async advance(): Promise<void> {
@@ -882,33 +897,21 @@ if (phase === 'elimination') {
     room.runoffIds = null
     room.players = room.players.map((p) =>
       p.id === playerId ? { ...p, ready: false } : p,
-    )
+)
 
     const aliveAfter = this.aliveIds()
     const check = checkWin({
       aliveIds: aliveAfter,
       roles: this.internal.roles,
-      mrWhiteAlive: aliveAfter.some((id) => this.internal!.roles[id] === 'mrwhite'),
-      undercoverAlive: aliveAfter.some(
-        (id) => this.internal!.roles[id] === 'undercover',
-      ),
-      mrWhiteGuessUsed: this.internal.mrWhiteGuessUsed,
-      lastEliminatedRole: role,
+      pendingMrWhiteGuess:
+        role === 'mrwhite' && !this.internal.mrWhiteGuessUsed,
+      mrWhiteGuessCorrect: null,
     })
 
     this.internal.pendingWinner = check.winner
-    if (check.needsMrWhiteGuess) {
-      if (role === 'mrwhite') {
-        this.internal.pendingMrWhiteId = playerId
-      } else {
-        const mw = aliveAfter.find(
-          (id) => this.internal!.roles[id] === 'mrwhite',
-        )
-        this.internal.pendingMrWhiteId = mw ?? playerId
-      }
-    } else {
-      this.internal.pendingMrWhiteId = null
-    }
+    this.internal.pendingMrWhiteId = check.needsMrWhiteGuess
+      ? playerId
+      : null
 
     this.enterPhase('elimination', null)
   }
@@ -998,13 +1001,14 @@ private recordGame(): void {
       const role = r.role
       const survived = r.eliminatedRound == null
       const exp = breakdownExp(winner, role, survived, record.rounds).total
+      const won = winningRole(winner).includes(role)
       const entry = next.find((b) => b.playerId === playerId)
       if (entry) {
         entry.name = name
         entry.avatarSeed = player?.avatarSeed ?? entry.avatarSeed
         entry.exp += exp
         entry.games += 1
-        if (role === winningRole(winner)) entry.wins += 1
+        if (won) entry.wins += 1
       } else {
         next.push({
           playerId,
@@ -1012,7 +1016,7 @@ private recordGame(): void {
           avatarSeed: player?.avatarSeed ?? 0,
           exp,
           games: 1,
-          wins: role === winningRole(winner) ? 1 : 0,
+          wins: won ? 1 : 0,
         })
       }
     }
