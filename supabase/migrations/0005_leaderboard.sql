@@ -197,7 +197,11 @@ as $$
     ps.exp % 100 as into_level,
     ps.games,
     ps.wins,
-    ps.player_id = private.require_uid()::text as is_me
+    ps.player_id = (
+      select m.player_id
+      from public.memberships m
+      where m.user_id = private.require_uid()
+    ) as is_me
   from public.party_stats ps
   where ps.room_code = private.member_code(private.require_uid())
   order by ps.exp desc, ps.name asc

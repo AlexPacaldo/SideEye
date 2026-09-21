@@ -272,7 +272,10 @@ begin
     delete from public.clues where room_code = p_code and round = r.round;
     update public.rooms
       set pass_order = case
-        when r.mode = 'passplay' then private.alive_ids(p_code)
+        when r.mode = 'passplay' then (
+          select array_agg(pid order by random())
+          from unnest(private.alive_ids(p_code)) as a(pid)
+        )
         else (
           select array_agg(pid order by md5(p_code || pid || r.round::text))
           from unnest(private.alive_ids(p_code)) as a(pid)
@@ -318,7 +321,10 @@ begin
     where code = p_code;
   elsif p_phase = 'discussion' and r.mode = 'passplay' then
     update public.rooms
-      set pass_order = private.alive_ids(p_code)
+      set pass_order = (
+        select array_agg(pid order by random())
+        from unnest(private.alive_ids(p_code)) as a(pid)
+      )
     where code = p_code;
   end if;
 end $$;
