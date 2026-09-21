@@ -19,7 +19,7 @@ export function ExpPayout() {
   }, [backend])
 
   if (!room || !room.winner || !room.reveal) return null
-  const meId = snapshot.me?.playerId
+  const meId = room.mode === 'passplay' ? room.hostId : snapshot.me?.playerId
   const myReveal = meId ? room.reveal.find((r) => r.playerId === meId) : undefined
   if (!myReveal) return null
 

@@ -116,7 +116,7 @@ export function AppShell() {
             {room.mode === 'passplay' ? 'PASS & PLAY' : `ROUND ${Math.max(1, room.round)}`}
           </span>
           <span className="grow" />
-          <PartyChat />
+          {room.mode !== 'passplay' && <PartyChat />}
           <VoiceChat />
           <button
             type="button"

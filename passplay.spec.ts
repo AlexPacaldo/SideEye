@@ -91,7 +91,8 @@ describe('pass & play', () => {
     expect(order).toHaveLength(4)
     expect(new Set(order).size).toBe(4)
     expect(s.room!.phase).toBe('discussion')
-    expect(s.room!.passOrder).toEqual(order)
+    // the clue/talk order is a random shuffle of the same set
+    expect([...s.room!.passOrder].sort()).toEqual([...order].sort())
     void advanceTickerFinishes
   })
 

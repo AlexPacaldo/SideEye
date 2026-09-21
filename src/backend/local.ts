@@ -25,6 +25,8 @@ import { BackendError, type Backend, type ChatMessage, type Friend, type GameRec
 
 const CLUE_TURN_SECONDS = 60
 
+const PASS_PLAY_CODE = 'PASSPLAY'
+
 const BOT_NAMES = [
   'Mia',
   'Carlo',
@@ -255,7 +257,7 @@ async getHistory(): Promise<GameRecord[]> {
 
   async getPartyLeaderboard(): Promise<LeaderboardEntry[]> {
     if (!this.room) return []
-    const me = this.snapshot.me?.playerId
+    const me = this.user?.id
     const sorted = [...this.board].sort((a, b) => b.exp - a.exp || a.name.localeCompare(b.name))
     return sorted.map((b, i) => {
       const lvl = levelInfo(b.exp)
@@ -316,7 +318,7 @@ async createRoom(input: CreateRoomInput): Promise<void> {
     this.chat = []
     this.chatListeners.clear()
     const settings = { ...DEFAULT_SETTINGS, ...input.settings }
-    const code = generateRoomCode()
+    const code = input.mode === 'passplay' ? PASS_PLAY_CODE : generateRoomCode()
     const players: PublicPlayer[] = []
 
     if (input.mode === 'passplay') {
@@ -805,11 +807,7 @@ if (room.passIndex >= this.internal.passOrder.length) {
 if (phase === 'clue') {
       room.submittedIds = []
       room.clues = room.clues.filter((c) => c.round !== room.round)
-      this.setPassOrder(
-        this.room.mode === 'passplay'
-          ? this.aliveIds()
-          : this.shuffleOrder(this.aliveIds()),
-      )
+      this.setPassOrder(this.shuffleOrder(this.aliveIds()))
       if (room.mode !== 'passplay') {
         room.deadline = Date.now() + CLUE_TURN_SECONDS * 1000
         room.timerSeconds = CLUE_TURN_SECONDS
@@ -840,7 +838,7 @@ if (phase === 'elimination') {
       room.timerSeconds = null
     }
     if (phase === 'discussion' && room.mode === 'passplay') {
-      this.setPassOrder(this.aliveIds())
+      this.setPassOrder(this.shuffleOrder(this.aliveIds()))
     }
 
     this.startTicker()
