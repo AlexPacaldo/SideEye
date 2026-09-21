@@ -7,9 +7,10 @@ interface ModalProps {
   onClose?: () => void
   children: ReactNode
   labelledBy?: string
+  variant?: 'default' | 'sheet'
 }
 
-export function Modal({ open, onClose, children, labelledBy }: ModalProps) {
+export function Modal({ open, onClose, children, labelledBy, variant = 'default' }: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -24,11 +25,14 @@ export function Modal({ open, onClose, children, labelledBy }: ModalProps) {
     }
   }, [open, onClose])
 
+  const overlayClass = variant === 'sheet' ? 'overlay overlay--sheet' : 'overlay'
+  const modalClass = variant === 'sheet' ? 'modal modal--sheet' : 'modal'
+
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="overlay"
+          className={overlayClass}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -37,7 +41,7 @@ export function Modal({ open, onClose, children, labelledBy }: ModalProps) {
           role="presentation"
         >
           <motion.div
-            className="modal"
+            className={modalClass}
             role="dialog"
             aria-modal="true"
             aria-labelledby={labelledBy}

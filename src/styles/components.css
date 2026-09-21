@@ -184,6 +184,39 @@
   padding: 26px;
 }
 
+@media (max-width: 768px) {
+  .overlay--sheet {
+    padding: 0;
+    place-items: start center;
+  }
+  .modal--sheet {
+    width: 100%;
+    height: var(--chat-sheet-h, 100dvh);
+    max-height: none;
+    margin-top: var(--chat-sheet-top, 0px);
+    display: flex;
+    flex-direction: column;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    padding: 22px 22px calc(14px + env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+  .modal--sheet .chat-panel {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+  }
+  .modal--sheet .chat-list {
+    min-height: 0;
+  }
+  .modal--sheet .chat-entry {
+    flex: none;
+    padding-top: 12px;
+  }
+}
+
 /* =========================================================
    Toasts
    ========================================================= */

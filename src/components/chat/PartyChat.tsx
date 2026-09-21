@@ -39,6 +39,28 @@ export function PartyChat() {
     }
   }, [open, loaded, messages.length])
 
+  useEffect(() => {
+    const vv = window.visualViewport
+    const update = () => {
+      const root = document.documentElement
+      root.style.setProperty('--chat-sheet-top', `${vv ? vv.offsetTop : 0}px`)
+      root.style.setProperty('--chat-sheet-h', `${vv ? vv.height : window.innerHeight}px`)
+    }
+    update()
+    if (vv) {
+      vv.addEventListener('resize', update)
+      vv.addEventListener('scroll', update)
+    }
+    window.addEventListener('resize', update)
+    return () => {
+      if (vv) {
+        vv.removeEventListener('resize', update)
+        vv.removeEventListener('scroll', update)
+      }
+      window.removeEventListener('resize', update)
+    }
+  }, [])
+
   const submit = async () => {
     const clean = text.trim()
     if (!clean || sending) return
@@ -64,7 +86,7 @@ export function PartyChat() {
       </button>
 
       {createPortal(
-        <Modal open={open} onClose={() => setOpen(false)} labelledBy="chat-title">
+        <Modal open={open} onClose={() => setOpen(false)} labelledBy="chat-title" variant="sheet">
           <div className="chat-panel">
             <div className="chat-panel__head">
               <h2 id="chat-title" className="t-title">
@@ -110,6 +132,7 @@ export function PartyChat() {
                 value={text}
                 maxLength={300}
                 placeholder="Say something…"
+                enterKeyHint="send"
                 onChange={(e) => setText(e.target.value)}
               />
               <button
