@@ -27,6 +27,16 @@ const CLUE_TURN_SECONDS = 60
 
 const PASS_PLAY_CODE = 'PASSPLAY'
 
+const FILLER_CLUES = ['…', 'hmm']
+
+function isFillerClue(text: string): boolean {
+  return FILLER_CLUES.includes(text.trim().toLowerCase())
+}
+
+function clueKey(text: string): string {
+  return text.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
 const BOT_NAMES = [
   'Mia',
   'Carlo',
@@ -583,12 +593,24 @@ async submitClue(text: string): Promise<void> {
     this.submitClueFor(actor, text)
   }
 
-  private submitClueFor(playerId: string | null, text: string): void {
+private submitClueFor(playerId: string | null, text: string): void {
     if (!this.room || this.room.phase !== 'clue' || !playerId) return
     const clean = text.trim().slice(0, 30)
     if (!clean) return
     if (this.room.clues.some((c) => c.playerId === playerId && c.round === this.room!.round)) {
       return
+    }
+    if (
+      this.room.mode === 'online' &&
+      !isFillerClue(clean) &&
+      this.room.clues.some(
+        (c) =>
+          c.round === this.room!.round &&
+          !isFillerClue(c.text) &&
+          clueKey(c.text) === clueKey(clean),
+      )
+    ) {
+      throw new BackendError(`"${clean}" is already being used - pick a different clue.`)
     }
     this.room.clues = [
       ...this.room.clues,
@@ -1162,14 +1184,30 @@ this.room.phase === 'clue'
           }
         }, delay)
       }
-      if (
+if (
         room.phase === 'clue' &&
         !room.clues.some((c) => c.playerId === b.id && c.round === room.round)
       ) {
         this.later(() => {
           if (this.room?.phase !== 'clue') return
-          const clue = botClue(this.internal!.roles[b.id], this.seenSecrets.get(b.id)?.word ?? null)
-          this.submitClueFor(b.id, clue)
+          const role = this.internal!.roles[b.id]
+          const word = this.seenSecrets.get(b.id)?.word ?? null
+          let clue = botClue(role, word)
+          const taken = (c: string) =>
+            this.room!.clues.some(
+              (x) =>
+                x.round === this.room!.round &&
+                !isFillerClue(x.text) &&
+                clueKey(x.text) === clueKey(c),
+            )
+          for (let i = 0; i < 8 && taken(clue); i += 1) {
+            clue = botClue(role, word)
+          }
+          try {
+            this.submitClueFor(b.id, clue)
+          } catch {
+            return
+          }
         }, delay + 900)
       }
       if (

@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion'
 import { Lock } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { ClueStack } from '../components/game/ClueStack'
 import { VoteTarget } from '../components/game/VoteTarget'
 import { Avatar } from '../components/ui/Avatar'
 import { GameTimer } from '../components/ui/GameTimer'
 import { useApp } from '../state/context'
 import { useVoiceTalking } from '../voice'
+import { buildClueEntries } from '../game/entries'
 import type { PublicPlayer, RoomSnapshot } from '../game/types'
 
 function candidatesFor(room: RoomSnapshot, voterId: string): PublicPlayer[] {
@@ -51,6 +53,7 @@ function VotingOnline() {
   const [selected, setSelected] = useState<string | null>(null)
   const candidates = useMemo(() => candidatesFor(room, me.playerId), [room, me.playerId])
   const clues = useMemo(() => clueMap(room), [room])
+  const entries = useMemo(() => buildClueEntries(room, me.playerId), [room, me.playerId])
   const alive = room.players.filter((p) => !room.eliminatedIds.includes(p.id))
 
   if (room.eliminatedIds.includes(me.playerId)) {
@@ -105,6 +108,11 @@ function VotingOnline() {
           No clear answer. Vote again — and&nbsp;this time, mean it.
         </p>
       )}
+
+      <section className="voting-clues" aria-label="Clues said this round">
+        <span className="t-eyebrow">Clues said</span>
+        <ClueStack entries={entries} />
+      </section>
 
       {voted ? (
         <div className="col center" style={{ gap: 14, padding: '30px 0' }}>

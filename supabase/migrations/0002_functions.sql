@@ -399,6 +399,14 @@ begin
     select 1 from public.clues
     where room_code = p_code and player_id = p_player and round = r.round
   ) then return; end if;
+  if r.mode = 'online' and v_clean not in ('…', 'hmm') then
+    if exists (
+      select 1 from public.clues c
+      where c.room_code = p_code and c.round = r.round
+        and lower(regexp_replace(c.text, '[^a-zA-Z0-9]', '', 'g')) =
+            lower(regexp_replace(v_clean, '[^a-zA-Z0-9]', '', 'g'))
+    ) then return; end if;
+  end if;
 
   insert into public.clues (room_code, player_id, text, round)
   values (p_code, p_player, v_clean, r.round);
@@ -731,26 +739,36 @@ declare
   v_word text;
   v_rel text[];
   v_txt text;
+  i int;
 begin
   select role, word into v_role, v_word
   from private.room_secrets where room_code = p_code and player_id = p_bot;
 
-  if v_role = 'mrwhite' or v_word is null then
-    v_txt := private.pick(private.mrwhite_clues());
-  else
-    v_rel := private.related_for(v_word);
-    if v_role = 'undercover' then
-      v_txt := case
-        when v_rel is not null and random() < 0.55 then private.pick(v_rel)
-        else private.pick(private.generic())
-      end;
+  for i in 1..10 loop
+    if v_role = 'mrwhite' or v_word is null then
+      v_txt := private.pick(private.mrwhite_clues());
     else
-      v_txt := case
-        when v_rel is not null then private.pick(v_rel)
-        else private.pick(private.generic())
-      end;
+      v_rel := private.related_for(v_word);
+      if v_role = 'undercover' then
+        v_txt := case
+          when v_rel is not null and random() < 0.55 then private.pick(v_rel)
+          else private.pick(private.generic())
+        end;
+      else
+        v_txt := case
+          when v_rel is not null then private.pick(v_rel)
+          else private.pick(private.generic())
+        end;
+      end if;
     end if;
-  end if;
+    exit when not exists (
+      select 1 from public.clues c
+      where c.room_code = p_code
+        and c.round = (select round from public.rooms where code = p_code)
+        and lower(regexp_replace(c.text, '[^a-zA-Z0-9]', '', 'g')) =
+            lower(regexp_replace(v_txt, '[^a-zA-Z0-9]', '', 'g'))
+    );
+  end loop;
 
   perform private.submit_clue(p_code, p_bot, v_txt);
 end $$;
@@ -1395,6 +1413,7 @@ declare
   v_uid uuid := private.require_uid();
   r public.rooms%rowtype;
   v_actor text;
+  v_clean text;
 begin
   select * into r from public.rooms where code = private.member_code(v_uid);
   if r.code is null then return; end if;
@@ -1409,6 +1428,17 @@ begin
       else null
     end;
     if v_actor is null or v_actor <> v_uid::text then return; end if;
+  end if;
+  v_clean := left(btrim(coalesce(p_text, '')), 30);
+  if r.mode = 'online' and v_clean <> '' and v_clean not in ('…', 'hmm') then
+    if exists (
+      select 1 from public.clues c
+      where c.room_code = r.code and c.round = r.round
+        and lower(regexp_replace(c.text, '[^a-zA-Z0-9]', '', 'g')) =
+            lower(regexp_replace(v_clean, '[^a-zA-Z0-9]', '', 'g'))
+    ) then
+      raise exception 'That clue is already being used. Pick a different word.';
+    end if;
   end if;
   perform private.submit_clue(r.code, v_actor, p_text);
 end $$;

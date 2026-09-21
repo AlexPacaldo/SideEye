@@ -631,6 +631,13 @@
   background: color-mix(in srgb, var(--primary) 7%, var(--surface));
 }
 
+.voting-clues {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 6px;
+}
+
 /* =========================================================
    Suspicion / vote cards
    ========================================================= */
