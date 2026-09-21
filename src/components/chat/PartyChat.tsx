@@ -1,4 +1,4 @@
-import { MessageCircle, Send } from 'lucide-react'
+import { MessageCircle, Send, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePartyChat } from '../../hooks/usePartyChat'
@@ -92,7 +92,17 @@ export function PartyChat() {
               <h2 id="chat-title" className="t-title">
                 Party chat
               </h2>
-              <span className="badge">{messages.length}</span>
+              <span className="row" style={{ gap: 8 }}>
+                <span className="badge">{messages.length}</span>
+                <button
+                  type="button"
+                  className="btn btn--icon btn--ghost"
+                  onClick={() => setOpen(false)}
+                  aria-label="Close chat"
+                >
+                  <X size={16} />
+                </button>
+              </span>
             </div>
 
             <div className="chat-list" ref={listRef}>
